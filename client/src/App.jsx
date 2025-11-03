@@ -1,0 +1,34 @@
+import React from 'react';
+import './index.css';
+import ModuleCard from './components/ModuleCard';
+import nutrition from './modules/nutrition';
+import fitness from './modules/fitness';
+import productivity from './modules/productivity';
+
+const MODULES = [nutrition, fitness, productivity];
+
+export default function App() {
+  return (
+    <div className="app-root">
+      <header>
+        <h1>Momentum</h1>
+        <p className="muted">Modular productivity: add modules for features like nutrition, fitness, tasks.</p>
+      </header>
+
+      <main>
+        <div className="module-grid">
+          {MODULES.map((m) => (
+            <ModuleCard
+              key={m.key}
+              moduleKey={m.key}
+              title={m.title}
+              description={m.description}
+            />
+          ))}
+        </div>
+      </main>
+
+      <footer className="muted">Add more modules under <code>client/src/modules</code> and corresponding server routes under <code>server/modules</code>.</footer>
+    </div>
+  );
+}
