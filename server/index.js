@@ -1,3 +1,5 @@
+// Load local .env into process.env (safe for development). Put this at the top so env vars are available.
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import cors from 'cors';

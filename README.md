@@ -69,3 +69,41 @@ Where to go next
 - Add TypeScript support if you prefer stricter typing
 
 If you'd like, I can create a branch, commit these changes, and open a PR with the modular scaffolding and dependency updates.
+
+Nutritionix integration
+
+This project includes a small server-side wrapper for the Nutritionix API at `server/modules/nutrition/nutritionix.js`.
+
+Setup
+
+1. Sign up for Nutritionix and get your App ID and App Key: https://developer.nutritionix.com/
+2. Create a `.env` file at the repo root (you can copy `.env.example`) and set:
+
+```
+NUTRITIONIX_APP_ID=your_app_id
+NUTRITIONIX_API_KEY=your_api_key
+```
+
+3. Restart the server (if running) so environment variables are picked up.
+
+How to use the Nutritionix wrapper (server-side)
+
+Import the wrapper from the nutrition module and call methods. Example within `server/modules/nutrition/service.js` or a controller:
+
+```js
+import nutritionix from './nutritionix.js';
+
+async function example() {
+	// instant search for "banana"
+	const instant = await nutritionix.searchInstant('banana');
+
+	// natural language parse "2 eggs and a slice of bread"
+	const parsed = await nutritionix.naturalLanguage('2 eggs and a slice of bread');
+}
+```
+
+Notes
+
+- The wrapper expects `NUTRITIONIX_APP_ID` and `NUTRITIONIX_API_KEY` in the environment. It will throw a helpful error if keys are missing.
+- We intentionally added the wrapper but did not change service-level business logic; you can now call these helpers from `nutrition/service.js` when you want to enrich entries with nutrition facts.
+- Do not commit your real `.env` file. Use `.env.example` as a template.
