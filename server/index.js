@@ -4,6 +4,7 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import nutritionRouter from './modules/nutrition/index.js';
 import fitnessRouter from './modules/fitness/index.js';
 import productivityRouter from './modules/productivity/index.js';
@@ -28,10 +29,12 @@ app.use('/api/productivity', productivityRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientDist));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(clientDist, 'index.html'));
-});
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);

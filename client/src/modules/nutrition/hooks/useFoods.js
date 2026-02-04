@@ -1,8 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { searchFoods, postFood, getFoodSummary } from '../../../api/nutrition';
+import { searchFoods, postMeal, getFoodSummary, getMeals, updateMeal, deleteMeal } from '../../../api/nutrition';
 
 export default function useFoods() {
   const [searchResults, setSearchResults] = useState(null);
+  const [meals, setMeals] = useState([]);
+  const [currentMeal, setCurrentMeal] = useState([]);  // Foods being staged for current meal
+  const [mealName, setMealName] = useState('');
+  const [editingMealId, setEditingMealId] = useState(null);  // ID of meal being edited
   const [summary, setSummary] = useState(null);
   const [period, setPeriod] = useState('daily');
   const [loading, setLoading] = useState(false);
@@ -39,25 +43,101 @@ export default function useFoods() {
     }
   }, [period]);
 
-  useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
-
-  const addFood = useCallback(async (foodName, calories, protein, carbs, fat) => {
+  const fetchMeals = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const created = await postFood(foodName, calories, protein, carbs, fat);
-      // Refresh summary after adding
-      await fetchSummary();
-      return created;
+      const mealList = await getMeals();
+      setMeals(mealList);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [mealList, summaryData] = await Promise.all([
+        getMeals(),
+        getFoodSummary(period)
+      ]);
+      setMeals(mealList);
+      setSummary(summaryData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const addFoodToCurrentMeal = useCallback((food) => {
+    setCurrentMeal(prev => [...prev, food]);
+  }, []);
+
+  const removeFoodFromCurrentMeal = useCallback((index) => {
+    setCurrentMeal(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateFoodInCurrentMeal = useCallback((index, updatedFood) => {
+    setCurrentMeal(prev => prev.map((food, i) => i === index ? updatedFood : food));
+  }, []);
+
+  const clearCurrentMeal = useCallback(() => {
+    setCurrentMeal([]);
+    setMealName('');
+    setEditingMealId(null);
+  }, []);
+
+  const startEditingMeal = useCallback((meal) => {
+    setEditingMealId(meal.id);
+    setMealName(meal.name);
+    setCurrentMeal([...meal.foods]);
+  }, []);
+
+  const saveMeal = useCallback(async (name) => {
+    if (!name || currentMeal.length === 0) {
+      setError('Meal name and at least one food item required');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      if (editingMealId) {
+        await updateMeal(editingMealId, name, currentMeal);
+      } else {
+        await postMeal(name, currentMeal);
+      }
+      clearCurrentMeal();
+      await fetchAll();
     } catch (err) {
       setError(err.message);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [fetchSummary]);
+  }, [editingMealId, currentMeal, clearCurrentMeal, fetchAll]);
+
+  const deleteMealEntry = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteMeal(id);
+      // Refresh both meals and summary after deleting
+      await fetchAll();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll]);
 
   const changePeriod = useCallback((newPeriod) => {
     setPeriod(newPeriod);
@@ -66,12 +146,23 @@ export default function useFoods() {
 
   return { 
     searchResults, 
+    meals,
+    currentMeal,
+    mealName,
+    editingMealId,
     summary, 
     period,
     loading, 
     error, 
     search, 
-    addFood, 
+    addFoodToCurrentMeal,
+    removeFoodFromCurrentMeal,
+    updateFoodInCurrentMeal,
+    clearCurrentMeal,
+    saveMeal,
+    startEditingMeal,
+    deleteMealEntry,
+    setMealName,
     fetchSummary,
     changePeriod
   };

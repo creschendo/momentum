@@ -2,18 +2,27 @@ import React from 'react';
 
 // Presentational component: receives `status` from parent (no side-effects here)
 export default function ModuleCard({ title, description, status }) {
+  const getStatusDot = () => {
+    if (!status || status.loading) return '#cbd5e0'; // gray
+    return status.ok ? '#48bb78' : '#fc8181'; // green or red
+  };
+
   return (
     <div className="module-card">
-      <h2>{title}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span
+          style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: getStatusDot(),
+            display: 'inline-block',
+            transition: 'background-color 200ms'
+          }}
+        />
+        <h2 style={{ margin: 0 }}>{title}</h2>
+      </div>
       <p className="muted">{description}</p>
-
-      {(!status || status.loading) ? (
-        <p>Checking status...</p>
-      ) : status.ok ? (
-        <div className="status ok">{status.data?.info || 'OK'}</div>
-      ) : (
-        <div className="status error">Error: {status.error || 'Unknown'}</div>
-      )}
     </div>
   );
 }

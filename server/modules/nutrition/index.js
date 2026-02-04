@@ -47,6 +47,16 @@ router.get('/water/summary', (req, res) => {
   }
 });
 
+// DELETE /api/nutrition/water/reset
+router.delete('/water/reset', (req, res) => {
+  try {
+    const result = service.resetWaterEntries();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /api/nutrition/search?q=chicken
 router.get('/search', async (req, res) => {
   const { q } = req.query;
@@ -77,11 +87,71 @@ router.get('/foods', (req, res) => {
   }
 });
 
+// DELETE /api/nutrition/foods/:id
+router.delete('/foods/:id', (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = service.deleteFoodEntry(id);
+    res.json(result);
+  } catch (err) {
+    res.status(404).json({ error: String(err) });
+  }
+});
+
 // GET /api/nutrition/foods/summary
 router.get('/foods/summary',  (req, res) => {
   const { period = 'daily' } = req.query;
   const summary = service.getMacroSummary(period);
   res.json(summary);
+});
+
+// POST /api/nutrition/meals
+// body: { name: string, foods: [{foodName, calories, protein, carbs, fat}], timestamp?: ISOString }
+router.post('/meals', (req, res) => {
+  try {
+    const { name, foods, timestamp } = req.body;
+    if (!name || !foods || !Array.isArray(foods)) {
+      return res.status(400).json({ error: 'name and foods array required' });
+    }
+    const meal = service.addMeal({ name, foods, timestamp });
+    res.status(201).json(meal);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /api/nutrition/meals
+router.get('/meals', (req, res) => {
+  const { since } = req.query;
+  try {
+    const meals = service.getMeals({ since });
+    res.json(meals);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// PUT /api/nutrition/meals/:id
+router.put('/meals/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, foods } = req.body;
+  try {
+    const updated = service.updateMeal(id, { name, foods });
+    res.json(updated);
+  } catch (err) {
+    res.status(404).json({ error: String(err) });
+  }
+});
+
+// DELETE /api/nutrition/meals/:id
+router.delete('/meals/:id', (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = service.deleteMeal(id);
+    res.json(result);
+  } catch (err) {
+    res.status(404).json({ error: String(err) });
+  }
 });
 
 // POST /api/nutrition/tdee

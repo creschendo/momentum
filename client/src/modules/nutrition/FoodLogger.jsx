@@ -4,10 +4,32 @@ import { useTheme } from '../../context/ThemeContext';
 
 export default function FoodLogger() {
   const { theme } = useTheme();
-  const { searchResults, summary, period, loading, error, search, addFood, changePeriod } = useFoods();
+  const { 
+    searchResults, 
+    meals,
+    currentMeal,
+    mealName,
+    editingMealId,
+    summary, 
+    period, 
+    loading, 
+    error, 
+    search, 
+    addFoodToCurrentMeal,
+    removeFoodFromCurrentMeal,
+    updateFoodInCurrentMeal,
+    clearCurrentMeal,
+    saveMeal,
+    startEditingMeal,
+    deleteMealEntry,
+    setMealName,
+    changePeriod 
+  } = useFoods();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFood, setSelectedFood] = useState(null);
   const [servingSize, setServingSize] = useState(100);
+  const [editingFoodIndex, setEditingFoodIndex] = useState(null);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -26,29 +48,32 @@ export default function FoodLogger() {
     if (!selectedFood) return;
 
     const multiplier = servingSize / (selectedFood.serving_weight_grams || 100);
-    const calories = Math.round((selectedFood.nf_calories || 0) * multiplier);
-    const protein = Math.round((selectedFood.nf_protein || 0) * multiplier);
-    const carbs = Math.round((selectedFood.nf_total_carbohydrate || 0) * multiplier);
-    const fat = Math.round((selectedFood.nf_total_fat || 0) * multiplier);
+    const food = {
+      foodName: `${selectedFood.food_name} (${servingSize}g)`,
+      calories: Math.round((selectedFood.nf_calories || 0) * multiplier),
+      protein: Math.round((selectedFood.nf_protein || 0) * multiplier),
+      carbs: Math.round((selectedFood.nf_total_carbohydrate || 0) * multiplier),
+      fat: Math.round((selectedFood.nf_total_fat || 0) * multiplier)
+    };
 
+    addFoodToCurrentMeal(food);
+    setSelectedFood(null);
+    setSearchQuery('');
+  }
+
+  async function handleSaveMeal(e) {
+    e.preventDefault();
+    if (!mealName.trim() || currentMeal.length === 0) return;
+    
     try {
-      await addFood(
-        `${selectedFood.food_name} (${servingSize}g)`,
-        calories,
-        protein,
-        carbs,
-        fat
-      );
-      setSelectedFood(null);
-      setSearchQuery('');
-      setSearchResults(null);
+      await saveMeal(mealName);
     } catch (err) {
       // Error handled by hook
     }
   }
 
   return (
-    <div style={{ marginTop: 24, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
+    <div style={{ marginTop: 0, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
       <h3 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>Food & Macros</h3>
 
       {/* Search Form */}
@@ -61,7 +86,7 @@ export default function FoodLogger() {
           style={{
             flex: 1,
             padding: '10px 12px',
-            border: '1px solid #e2e8f0',
+            border: '1px solid #cbd5e0',
             borderRadius: 6,
             fontSize: 14,
             fontFamily: 'inherit'
@@ -91,7 +116,7 @@ export default function FoodLogger() {
 
       {/* Search Results */}
       {searchResults && searchResults.common && searchResults.common.length > 0 && (
-        <div style={{ marginBottom: 20, padding: 16, backgroundColor: 'white', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+        <div style={{ marginBottom: 20, padding: 16, backgroundColor: 'white', borderRadius: 6, border: '1px solid #cbd5e0' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#718096', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Search Results</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 200, overflowY: 'auto' }}>
             {searchResults.common.slice(0, 10).map((food, idx) => (
@@ -133,9 +158,9 @@ export default function FoodLogger() {
                 onChange={(e) => setServingSize(Number(e.target.value))}
                 min={1}
                 style={{
-                  width: '100%',
+                  width: '120px',
                   padding: '8px 12px',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid #cbd5e0',
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: 'inherit'
@@ -189,7 +214,7 @@ export default function FoodLogger() {
                 onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
                 onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
               >
-                Add Food
+                Add to Current Meal
               </button>
               <button
                 type="button"
@@ -222,8 +247,307 @@ export default function FoodLogger() {
         </div>
       )}
 
+      {/* Current Meal Builder */}
+      {currentMeal.length > 0 && (
+        <div style={{ marginBottom: 20, padding: 16, backgroundColor: 'white', borderRadius: 6, border: editingMealId ? '2px solid #3182ce' : '2px solid #48bb78' }}>
+          <h4 style={{ marginTop: 0, marginBottom: 14, fontSize: 16, fontWeight: 600, color: '#1a202c' }}>
+            {editingMealId ? 'Editing Meal' : 'Current Meal'}
+          </h4>
+          
+          <div style={{ marginBottom: 14 }}>
+            {currentMeal.map((food, idx) => (
+              <div key={idx} style={{ 
+                padding: '8px 12px', 
+                marginBottom: 8,
+                backgroundColor: '#f7fafc', 
+                borderRadius: 6 
+              }}>
+                {editingFoodIndex === idx ? (
+                  // Edit mode for this food
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#1a202c', marginBottom: 8 }}>{food.foodName.replace(/\s*\(\d+g\)/, '')}</div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, color: '#4a5568' }}>Portion:</label>
+                      <input
+                        type="number"
+                        value={parseInt(food.foodName.match(/\((\d+)g\)/)?.[1] || 100)}
+                        onChange={(e) => {
+                          const newSize = Number(e.target.value);
+                          const baseName = food.foodName.replace(/\s*\(\d+g\)/, '');
+                          const originalSize = parseInt(food.foodName.match(/\((\d+)g\)/)?.[1] || 100);
+                          const multiplier = newSize / originalSize;
+                          
+                          updateFoodInCurrentMeal(idx, {
+                            foodName: `${baseName} (${newSize}g)`,
+                            calories: Math.round(food.calories * multiplier),
+                            protein: Math.round(food.protein * multiplier),
+                            carbs: Math.round(food.carbs * multiplier),
+                            fat: Math.round(food.fat * multiplier)
+                          });
+                        }}
+                        min={1}
+                        style={{
+                          width: '80px',
+                          padding: '6px 8px',
+                          border: '1px solid #cbd5e0',
+                          borderRadius: 4,
+                          fontSize: 13
+                        }}
+                      />
+                      <span style={{ fontSize: 12, color: '#718096' }}>grams</span>
+                      <button
+                        onClick={() => setEditingFoodIndex(null)}
+                        style={{
+                          marginLeft: 'auto',
+                          padding: '6px 12px',
+                          backgroundColor: '#48bb78',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Done
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#718096' }}>
+                      {food.calories}cal • {food.protein}p • {food.carbs}c • {food.fat}f
+                    </div>
+                  </div>
+                ) : (
+                  // View mode
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#1a202c', marginBottom: 4 }}>{food.foodName}</div>
+                      <div style={{ fontSize: 12, color: '#718096' }}>
+                        {food.calories}cal • {food.protein}p • {food.carbs}c • {food.fat}f
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setEditingFoodIndex(idx)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#3182ce',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'background 200ms'
+                        }}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => removeFoodFromCurrentMeal(idx)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#fc8181',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'background 200ms'
+                        }}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#f56565')}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#fc8181')}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSaveMeal}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6 }}>
+                Meal Name
+              </label>
+              <input
+                type="text"
+                value={mealName}
+                onChange={(e) => setMealName(e.target.value)}
+                placeholder="e.g., Breakfast, Lunch, Dinner"
+                style={{
+                  width: '280px',
+                  maxWidth: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="submit"
+                disabled={!mealName.trim()}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: mealName.trim() ? '#48bb78' : '#cbd5e0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: mealName.trim() ? 'pointer' : 'not-allowed',
+                  transition: 'background 200ms'
+                }}
+                onMouseEnter={(e) => {
+                  if (mealName.trim()) e.target.style.backgroundColor = '#38a169';
+                }}
+                onMouseLeave={(e) => {
+                  if (mealName.trim()) e.target.style.backgroundColor = '#48bb78';
+                }}
+              >
+                {editingMealId ? 'Update Meal' : 'Save Meal'}
+              </button>
+              <button
+                type="button"
+                onClick={clearCurrentMeal}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: 'transparent',
+                  color: '#718096',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 200ms'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f7fafc';
+                  e.target.style.color = '#4a5568';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#718096';
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Today's Meals */}
+      {meals && meals.length > 0 && (
+        <div style={{ marginTop: 16, padding: 16, backgroundColor: 'white', borderRadius: 6, border: `1px solid ${theme.border}` }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+            Your Meals
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {meals.slice(0, 10).map((meal) => {
+              const totalCals = meal.foods.reduce((sum, f) => sum + (Number(f.calories) || 0), 0);
+              const totalProtein = meal.foods.reduce((sum, f) => sum + (Number(f.protein) || 0), 0);
+              const totalCarbs = meal.foods.reduce((sum, f) => sum + (Number(f.carbs) || 0), 0);
+              const totalFat = meal.foods.reduce((sum, f) => sum + (Number(f.fat) || 0), 0);
+
+              return (
+                <div
+                  key={meal.id}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: theme.bgSecondary,
+                    borderRadius: 6,
+                    border: `1px solid ${theme.border}`
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: theme.text, marginBottom: 4 }}>
+                        {meal.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>
+                        {Math.round(totalCals)}cal • {Math.round(totalProtein)}p • {Math.round(totalCarbs)}c • {Math.round(totalFat)}f
+                      </div>
+                      <div style={{ fontSize: 11, color: theme.textMuted, fontStyle: 'italic' }}>
+                        {meal.foods.length} item{meal.foods.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => startEditingMeal(meal)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#3182ce',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'background 200ms'
+                        }}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteMealEntry(meal.id)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#fc8181',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'background 200ms'
+                        }}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#f56565')}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#fc8181')}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <details style={{ marginTop: 8 }}>
+                    <summary style={{ 
+                      fontSize: 11, 
+                      color: '#3182ce', 
+                      cursor: 'pointer', 
+                      fontWeight: 500,
+                      userSelect: 'none'
+                    }}>
+                      Show Foods
+                    </summary>
+                    <div style={{ marginTop: 8, paddingLeft: 12 }}>
+                      {meal.foods.map((food, idx) => (
+                        <div key={idx} style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4 }}>
+                          • {food.foodName} ({food.calories}cal, {food.protein}p, {food.carbs}c, {food.fat}f)
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Macro Summary */}
-      <div style={{ padding: 16, backgroundColor: 'white', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+      <div style={{ padding: 16, backgroundColor: 'white', borderRadius: 6, border: '1px solid #cbd5e0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Macro Summary</div>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -305,7 +629,7 @@ export default function FoodLogger() {
         ) : (
           <div style={{ fontSize: 14, color: '#718096' }}>No data available</div>
         )}
-        <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 12, paddingTop: 12, borderTop: '1px solid #cbd5e0' }}>
           {summary && (summary.entryCount || 0)} {period === 'daily' ? 'entries' : 'entries tracked'} {period === 'weekly' && `over ${summary.days || 0} days`}
         </div>
       </div>
