@@ -61,7 +61,7 @@ export default function BMRCalculator() {
   const weightValue = isMetric ? formData.weight_kg : (formData.weight_lbs || 165);
 
   return (
-    <div style={{ marginTop: 24, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
+    <div style={{ marginTop: 0, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: theme.text }}>
           BMR & TDEE Calculator

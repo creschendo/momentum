@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getWaterEntries, getWaterSummary, postWater } from '../../../api/nutrition';
+import { getWaterEntries, getWaterSummary, postWater, resetWaterEntries } from '../../../api/nutrition';
 
 export default function useWater() {
   const [entries, setEntries] = useState([]);
@@ -56,5 +56,19 @@ export default function useWater() {
     }
   }, []);
 
-  return { entries, summary, loading, error, addEntry, fetchAll, refreshSummary };
+  const resetEntries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await resetWaterEntries();
+      await fetchAll();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll]);
+
+  return { entries, summary, loading, error, addEntry, fetchAll, refreshSummary, resetEntries };
 }

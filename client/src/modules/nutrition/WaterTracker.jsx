@@ -4,10 +4,11 @@ import { useTheme } from '../../context/ThemeContext';
 
 export default function WaterTracker() {
   const { theme } = useTheme();
-  const { entries, summary, loading, error, addEntry, fetchAll, refreshSummary } = useWater();
+  const { entries, summary, loading, error, addEntry, fetchAll, refreshSummary, resetEntries } = useWater();
   const [value, setValue] = useState(250);
   const [goalMl, setGoalMl] = useState(2000);
   const [animatingDroplets, setAnimatingDroplets] = useState([]);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const dropletIdRef = useRef(0);
 
   const totalMl = summary?.totalMl || 0;
@@ -46,8 +47,17 @@ export default function WaterTracker() {
     }
   }
 
+  async function handleReset() {
+    try {
+      await resetEntries();
+      setShowResetConfirm(false);
+    } catch (err) {
+      // error surfaced in hook
+    }
+  }
+
   return (
-    <div style={{ marginTop: 24, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
+    <div style={{ marginTop: 0, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
       <style>{`
         @keyframes dropletFall {
           0% {
@@ -77,9 +87,9 @@ export default function WaterTracker() {
             onChange={(e) => setValue(e.target.value)}
             min={1}
             style={{
-              width: '100%',
+              width: '280px',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
+              border: '1px solid #cbd5e0',
               borderRadius: 6,
               fontSize: 14,
               fontFamily: 'inherit'
@@ -189,7 +199,7 @@ export default function WaterTracker() {
                 style={{
                   width: 110,
                   padding: '8px 12px',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid #cbd5e0',
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: 'inherit'
@@ -208,8 +218,115 @@ export default function WaterTracker() {
               </div>
             )}
           </div>
+          <div style={{ marginTop: 20 }}>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              style={{
+                width: '100%',
+                padding: '8px 16px',
+                backgroundColor: theme.errorBg,
+                color: theme.error,
+                border: `1px solid ${theme.error}`,
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 200ms'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = theme.error;
+                e.target.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = theme.errorBg;
+                e.target.style.color = theme.error;
+              }}
+            >
+              Reset All
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: theme.bg,
+            padding: 24,
+            borderRadius: 8,
+            border: `1px solid ${theme.border}`,
+            maxWidth: 400,
+            width: '90%'
+          }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: 16, fontWeight: 600, color: theme.text }}>
+              Reset Water Intake?
+            </h4>
+            <p style={{ margin: '0 0 20px 0', fontSize: 14, color: theme.textSecondary }}>
+              This will permanently delete all your water intake entries. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: theme.bgTertiary,
+                  color: theme.text,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 200ms'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = theme.primaryLight;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = theme.bgTertiary;
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: theme.error,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  transition: 'all 200ms'
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) e.target.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) e.target.style.opacity = '1';
+                }}
+              >
+                {loading ? 'Resetting...' : 'Reset All Entries'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import nutrition from './modules/nutrition';
 import fitness from './modules/fitness';
 import productivity from './modules/productivity';
 import NutritionModule from './modules/nutrition/NutritionModule';
+import FitnessModule from './modules/fitness/FitnessModule';
 import ProductivityModule from './modules/productivity/ProductivityModule';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
@@ -19,8 +20,16 @@ function AppContent() {
       <header style={{ backgroundColor: theme.bgSecondary, borderBottom: `1px solid ${theme.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' }}>
           <div>
-            <h1 style={{ margin: 0, color: theme.text }}>Momentum</h1>
-            <p className="muted" style={{ color: theme.textMuted }}>Modular productivity: add modules for features like nutrition, fitness, tasks.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+              <svg width="50" height="50" viewBox="0 0 200 200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
+                <rect x="40" y="40" width="120" height="120" fill="#0066FF" />
+                <path
+                  d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
+                  fill="white"
+                />
+              </svg>
+              <h1 style={{ margin: 3, marginTop: 8, marginBottom: 12, color: theme.text }}>Momentum</h1>
+            </div>
           </div>
           <button
             onClick={toggleTheme}
@@ -57,6 +66,10 @@ function AppContent() {
               <div key={m.key} className="module-card">
                 <NutritionModule />
               </div>
+            ) : m.key === 'fitness' ? (
+              <div key={m.key} className="module-card">
+                <FitnessModule />
+              </div>
             ) : m.key === 'productivity' ? (
               <div key={m.key} className="module-card">
                 <ProductivityModule />
@@ -72,8 +85,6 @@ function AppContent() {
           ))}
         </div>
       </main>
-
-      <footer className="muted" style={{ color: theme.textMuted, borderTop: `1px solid ${theme.border}` }}>Add more modules under <code>client/src/modules</code> and corresponding server routes under <code>server/modules</code>.</footer>
     </div>
   );
 }
