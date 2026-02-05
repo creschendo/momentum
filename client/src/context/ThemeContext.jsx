@@ -19,25 +19,25 @@ const lightTheme = {
 };
 
 const darkTheme = {
-  bg: '#1a202c',
-  bgSecondary: '#2d3748',
-  bgTertiary: '#374151',
-  text: '#f7fafc',
-  textSecondary: '#cbd5e0',
-  textMuted: '#a0aec0',
-  border: '#4a5568',
-  borderLight: '#718096',
-  primary: '#4299e1',
-  primaryDark: '#3182ce',
-  primaryLight: '#2c5282',
-  error: '#fc8181',
-  errorBg: '#742a2a'
+  bg: '#0f1419',
+  bgSecondary: '#1a1f2e',
+  bgTertiary: '#22283a',
+  text: '#e4e7eb',
+  textSecondary: '#b8bdc8',
+  textMuted: '#8b92a4',
+  border: '#2d3548',
+  borderLight: '#3d4558',
+  primary: '#60a5fa',
+  primaryDark: '#3b82f6',
+  primaryLight: '#1e3a5f',
+  error: '#f87171',
+  errorBg: '#7f1d1d'
 };
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme-dark');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
 
   const theme = isDark ? darkTheme : lightTheme;

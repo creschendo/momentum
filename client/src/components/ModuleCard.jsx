@@ -3,8 +3,7 @@ import React from 'react';
 // Presentational component: receives `status` from parent (no side-effects here)
 export default function ModuleCard({ title, description, status }) {
   const getStatusDot = () => {
-    if (!status || status.loading) return '#cbd5e0'; // gray
-    return status.ok ? '#48bb78' : '#fc8181'; // green or red
+    return '#48bb78'; // green
   };
 
   return (
