@@ -3,7 +3,9 @@ import { calculateTDEE } from '../../api/nutrition';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function BMRCalculator() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const caretColor = isDark ? 'e4e7eb' : '1a202c';
+  const caretIcon = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23${caretColor}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")`;
   const [formData, setFormData] = useState({
     age: 25,
     sex: 'male',
@@ -103,7 +105,7 @@ export default function BMRCalculator() {
       <form onSubmit={handleCalculate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         {/* Age */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isDark ? theme.textMuted : '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Age (years)
           </label>
           <input
@@ -116,32 +118,44 @@ export default function BMRCalculator() {
             style={{
               width: '100%',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
+              border: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0',
               borderRadius: 6,
               fontSize: 14,
               fontFamily: 'inherit',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              backgroundColor: isDark ? theme.bgTertiary : 'white',
+              color: isDark ? theme.text : '#1a202c'
             }}
           />
         </div>
 
         {/* Sex */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isDark ? theme.textMuted : '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Sex
           </label>
           <select
             name="sex"
             value={formData.sex}
             onChange={handleChange}
+            className="minimal-select"
             style={{
               width: '100%',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 6,
+              border: isDark ? `1px solid ${theme.border}` : '1px solid #d5dbe3',
+              borderRadius: 8,
               fontSize: 14,
               fontFamily: 'inherit',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              backgroundColor: isDark ? theme.bgTertiary : 'white',
+              color: isDark ? theme.text : '#1a202c',
+              outline: 'none',
+              boxShadow: 'none',
+              backgroundImage: caretIcon,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+              backgroundSize: '14px',
+              paddingRight: 32
             }}
           >
             <option value="male">Male</option>
@@ -151,7 +165,7 @@ export default function BMRCalculator() {
 
         {/* Height */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isDark ? theme.textMuted : '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Height ({isMetric ? 'cm' : 'in'})
           </label>
           <input
@@ -171,18 +185,20 @@ export default function BMRCalculator() {
             style={{
               width: '100%',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
+              border: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0',
               borderRadius: 6,
               fontSize: 14,
               fontFamily: 'inherit',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              backgroundColor: isDark ? theme.bgTertiary : 'white',
+              color: isDark ? theme.text : '#1a202c'
             }}
           />
         </div>
 
         {/* Weight */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isDark ? theme.textMuted : '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Weight ({isMetric ? 'kg' : 'lbs'})
           </label>
           <input
@@ -202,32 +218,44 @@ export default function BMRCalculator() {
             style={{
               width: '100%',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
+              border: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0',
               borderRadius: 6,
               fontSize: 14,
               fontFamily: 'inherit',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              backgroundColor: isDark ? theme.bgTertiary : 'white',
+              color: isDark ? theme.text : '#1a202c'
             }}
           />
         </div>
 
         {/* Activity Level */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isDark ? theme.textMuted : '#4a5568', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Activity Level
           </label>
           <select
             name="activity_level"
             value={formData.activity_level}
             onChange={handleChange}
+            className="minimal-select"
             style={{
               width: '100%',
               padding: '8px 12px',
-              border: '1px solid #e2e8f0',
-              borderRadius: 6,
+              border: isDark ? `1px solid ${theme.border}` : '1px solid #d5dbe3',
+              borderRadius: 8,
               fontSize: 14,
               fontFamily: 'inherit',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              backgroundColor: isDark ? theme.bgTertiary : 'white',
+              color: isDark ? theme.text : '#1a202c',
+              outline: 'none',
+              boxShadow: 'none',
+              backgroundImage: caretIcon,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+              backgroundSize: '14px',
+              paddingRight: 32
             }}
           >
             {activityLevels.map((level) => (
@@ -279,58 +307,58 @@ export default function BMRCalculator() {
       {result && (
         <div style={{
           padding: 20,
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
+          backgroundColor: isDark ? theme.bgTertiary : 'white',
+          border: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0',
           borderRadius: 8,
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 24
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               BMR
             </div>
             <div style={{ fontSize: 32, fontWeight: 700, color: '#3182ce', marginBottom: 4 }}>
               {result.bmr}
             </div>
-            <div style={{ fontSize: 12, color: '#718096' }}>
+            <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096' }}>
               calories/day at rest
             </div>
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               TDEE
             </div>
             <div style={{ fontSize: 32, fontWeight: 700, color: '#3182ce', marginBottom: 4 }}>
               {result.tdee}
             </div>
-            <div style={{ fontSize: 12, color: '#718096' }}>
+            <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096' }}>
               calories/day (with activity)
             </div>
           </div>
 
           {result.macros && (
-            <div style={{ gridColumn: '1 / -1', marginTop: 8, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#1a202c', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div style={{ gridColumn: '1 / -1', marginTop: 8, paddingTop: 16, borderTop: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? theme.text : '#1a202c', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Recommended Daily Macros
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f7fafc', borderRadius: 6 }}>
-                  <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>Protein</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#1a202c' }}>
+                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096', marginBottom: 4 }}>Protein</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: isDark ? theme.text : '#1a202c' }}>
                     {result.macros.protein_g || 'N/A'}g
                   </div>
                 </div>
-                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f7fafc', borderRadius: 6 }}>
-                  <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>Carbs</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#1a202c' }}>
+                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096', marginBottom: 4 }}>Carbs</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: isDark ? theme.text : '#1a202c' }}>
                     {result.macros.carbs_g || 'N/A'}g
                   </div>
                 </div>
-                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f7fafc', borderRadius: 6 }}>
-                  <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>Fat</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#1a202c' }}>
+                <div style={{ textAlign: 'center', padding: '12px', backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 6 }}>
+                  <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096', marginBottom: 4 }}>Fat</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: isDark ? theme.text : '#1a202c' }}>
                     {result.macros.fat_g || 'N/A'}g
                   </div>
                 </div>
