@@ -14,8 +14,53 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 const MODULES = [nutrition, productivity, fitness, pomodoro];
 
+function getThemeIcon(themeName, color) {
+  switch (themeName) {
+    case 'light':
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <line x1="12" y1="2" x2="12" y2="4" />
+          <line x1="12" y1="20" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="4" y2="12" />
+          <line x1="20" y1="12" x2="22" y2="12" />
+          <line x1="4.9" y1="4.9" x2="6.3" y2="6.3" />
+          <line x1="17.7" y1="17.7" x2="19.1" y2="19.1" />
+          <line x1="4.9" y1="19.1" x2="6.3" y2="17.7" />
+          <line x1="17.7" y1="6.3" x2="19.1" y2="4.9" />
+        </svg>
+      );
+    case 'dark':
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      );
+    case 'forest':
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2L2 12h3v8h5v-5h4v5h5v-8h3L12 2z" />
+          <line x1="12" y1="20" x2="12" y2="22" />
+        </svg>
+      );
+    case 'ember':
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a10 10 0 0 1 0 20" />
+        </svg>
+      );
+  }
+}
+
 function AppContent() {
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { theme, currentTheme, isDark, setTheme } = useTheme();
   
   // Load layout from localStorage or use default
   const [layout, setLayout] = useState(() => {
@@ -31,6 +76,7 @@ function AppContent() {
   const [dragOverQuadrant, setDragOverQuadrant] = useState(null);
   const [removeConfirmIndex, setRemoveConfirmIndex] = useState(null);
   const [addMenuIndex, setAddMenuIndex] = useState(null);
+  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   
   // Save layout to localStorage whenever it changes
   useEffect(() => {
@@ -136,25 +182,49 @@ function AppContent() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
               <div style={{ backgroundColor: theme.bgSecondary, padding: '16px', borderRadius: '8px' }}>
                 <svg width="80" height="80" viewBox="0 0 200 200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
-                  {isDark ? (
+                  {currentTheme === 'light' ? (
                     <>
-                      {/* Dark Mode - Inverted M */}
-                      {/* Dark background with rounded corners */}
-                      <rect x="40" y="40" width="120" height="120" rx="24" fill="#1a1a1a" />
-                      {/* White M cutout */}
+                      {/* Light Mode - Blue background with white M */}
+                      <rect x="40" y="40" width="120" height="120" fill="#0066FF" />
                       <path
                         d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
                         fill="white"
                       />
-                      {/* Blue accent at top */}
-                      <rect x="40" y="40" width="120" height="8" rx="24" fill="#0066FF" />
+                    </>
+                  ) : currentTheme === 'dark' ? (
+                    <>
+                      {/* Dark Mode - Dark background with white M and blue accent */}
+                      <rect x="40" y="40" width="120" height="120" rx="24" fill="#1a1a1a" />
+                      <path
+                        d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
+                        fill="white"
+                      />
+                      <rect x="40" y="40" width="120" height="8" rx="24" fill="#60a5fa" />
+                    </>
+                  ) : currentTheme === 'forest' ? (
+                    <>
+                      {/* Forest Mode - Dark green background with white M and green accent */}
+                      <rect x="40" y="40" width="120" height="120" rx="24" fill="#0a1f0f" />
+                      <path
+                        d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
+                        fill="white"
+                      />
+                      <rect x="40" y="40" width="120" height="8" rx="24" fill="#4ade80" />
+                    </>
+                  ) : currentTheme === 'ember' ? (
+                    <>
+                      {/* Ember Mode - Dark red background with white M and red accent */}
+                      <rect x="40" y="40" width="120" height="120" rx="24" fill="#1a0505" />
+                      <path
+                        d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
+                        fill="white"
+                      />
+                      <rect x="40" y="40" width="120" height="8" rx="24" fill="#ff4433" />
                     </>
                   ) : (
                     <>
-                      {/* Light Mode - Inverted Geometric M */}
-                      {/* Blue background square */}
-                      <rect x="40" y="40" width="120" height="120" fill="#0066FF" />
-                      {/* White M cutout */}
+                      {/* Default - Dark background with white M */}
+                      <rect x="40" y="40" width="120" height="120" rx="24" fill="#1a1a1a" />
                       <path
                         d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
                         fill="white"
@@ -163,50 +233,136 @@ function AppContent() {
                   )}
                 </svg>
               </div>
-              <h1 style={{ margin: 3, marginTop: 8, marginBottom: 12, color: theme.text }}>Momentum</h1>
+              <h1 style={{ margin: 3, marginTop: 8, marginBottom: 12, color: theme.text }}>MMTM</h1>
             </div>
           </div>
-          <button
-            onClick={toggleTheme}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              width: 36,
-              height: 36,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme.primaryDark,
-              color: '#ffffff',
-              border: `1px solid ${theme.border}`,
-              borderRadius: 8,
-              cursor: 'pointer',
-              transition: 'all 200ms'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = theme.primary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = theme.primaryDark;
-            }}
-          >
-            {isDark ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="4" />
-                <line x1="12" y1="2" x2="12" y2="4" />
-                <line x1="12" y1="20" x2="12" y2="22" />
-                <line x1="2" y1="12" x2="4" y2="12" />
-                <line x1="20" y1="12" x2="22" y2="12" />
-                <line x1="4.9" y1="4.9" x2="6.3" y2="6.3" />
-                <line x1="17.7" y1="17.7" x2="19.1" y2="19.1" />
-                <line x1="4.9" y1="19.1" x2="6.3" y2="17.7" />
-                <line x1="17.7" y1="6.3" x2="19.1" y2="4.9" />
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
+              aria-label="Select theme"
+              style={{
+                padding: '10px 36px 10px 36px',
+                backgroundColor: theme.bgTertiary,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 200ms ease',
+                fontFamily: 'inherit',
+                boxShadow: `0 2px 8px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`,
+                minWidth: '140px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.bgSecondary;
+                e.currentTarget.style.borderColor = theme.borderLight;
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, ${isDark ? '0.4' : '0.15'})`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = theme.bgTertiary;
+                e.currentTarget.style.borderColor = theme.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = `0 2px 8px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`;
+              }}
+            >
+              {getThemeIcon(currentTheme, theme.textMuted)}
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                {currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}
+              </span>
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke={theme.textMuted} 
+                strokeWidth="2.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{
+                  transform: themeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 200ms ease'
+                }}
+              >
+                <path d="M6 9l6 6 6-6" />
               </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-              </svg>
+            </button>
+            {themeDropdownOpen && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 999
+                  }}
+                  onClick={() => setThemeDropdownOpen(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    minWidth: '140px',
+                    backgroundColor: theme.bgSecondary,
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 12,
+                    boxShadow: `0 8px 24px rgba(0, 0, 0, ${isDark ? '0.5' : '0.15'}), 0 2px 8px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`,
+                    zIndex: 1000,
+                    overflow: 'hidden',
+                    padding: '6px'
+                  }}
+                >
+                  {['light', 'dark', 'forest', 'ember'].map((themeName) => (
+                    <button
+                      key={themeName}
+                      onClick={() => {
+                        setTheme(themeName);
+                        setThemeDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        backgroundColor: currentTheme === themeName ? theme.bgTertiary : 'transparent',
+                        color: theme.text,
+                        border: 'none',
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: currentTheme === themeName ? 600 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease',
+                        fontFamily: 'inherit',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginBottom: themeName === 'ember' ? 0 : '2px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentTheme !== themeName) {
+                          e.currentTarget.style.backgroundColor = theme.bgTertiary;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentTheme !== themeName) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                    >
+                      {getThemeIcon(themeName, theme.text)}
+                      <span>{themeName.charAt(0).toUpperCase() + themeName.slice(1)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-          </button>
+          </div>
         </div>
       </header>
 
