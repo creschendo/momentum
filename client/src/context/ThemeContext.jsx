@@ -34,23 +34,69 @@ const darkTheme = {
   errorBg: '#7f1d1d'
 };
 
+const forestTheme = {
+  bg: '#0a0f0d',
+  bgSecondary: '#152820',
+  bgTertiary: '#1f3a2f',
+  text: '#e8f2ed',
+  textSecondary: '#b8d4c8',
+  textMuted: '#7a9d8f',
+  border: '#2d4a3e',
+  borderLight: '#3d5a4e',
+  primary: '#4ade80',
+  primaryDark: '#22c55e',
+  primaryLight: '#1e4a2f',
+  error: '#fb7185',
+  errorBg: '#881337'
+};
+
+const emberTheme = {
+  bg: '#1a0a0a',
+  bgSecondary: '#2d1515',
+  bgTertiary: '#3d1f1f',
+  text: '#f2dfdf',
+  textSecondary: '#dab8b8',
+  textMuted: '#b87a7a',
+  border: '#4d2828',
+  borderLight: '#5d3333',
+  primary: '#ff4433',
+  primaryDark: '#e63946',
+  primaryLight: '#4d1a1a',
+  error: '#f87171',
+  errorBg: '#7f1d1d'
+};
+
+const themes = {
+  light: lightTheme,
+  dark: darkTheme,
+  forest: forestTheme,
+  ember: emberTheme
+};
+
+export const themeNames = {
+  light: 'Light',
+  dark: 'Dark',
+  forest: 'Forest',
+  ember: 'Ember'
+};
+
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme-dark');
-    return saved ? JSON.parse(saved) : true;
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    const saved = localStorage.getItem('current-theme');
+    return saved && themes[saved] ? saved : 'dark';
   });
 
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = themes[currentTheme];
+  const isDark = currentTheme !== 'light';
 
-  const toggleTheme = () => {
-    setIsDark((prev) => {
-      const newValue = !prev;
-      localStorage.setItem('theme-dark', JSON.stringify(newValue));
-      return newValue;
-    });
+  const setTheme = (themeName) => {
+    if (themes[themeName]) {
+      setCurrentTheme(themeName);
+      localStorage.setItem('current-theme', themeName);
+    }
   };
 
-  const value = useMemo(() => ({ theme, isDark, toggleTheme }), [theme, isDark]);
+  const value = useMemo(() => ({ theme, currentTheme, isDark, setTheme }), [theme, currentTheme, isDark]);
 
   return (
     <ThemeContext.Provider value={value}>

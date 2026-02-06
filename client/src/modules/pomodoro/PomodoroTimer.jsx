@@ -24,7 +24,7 @@ export default function PomodoroTimer() {
     if (!isRunning) {
       setRemainingSeconds(totalSeconds);
     }
-  }, [isRunning, totalSeconds]);
+  }, [totalSeconds]);
 
   useEffect(() => {
     if (!isRunning) return undefined;
@@ -48,6 +48,8 @@ export default function PomodoroTimer() {
     setIsRunning(false);
     setRemainingSeconds(totalSeconds);
   };
+
+  
 
   return (
     <div style={{ marginTop: 24, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
