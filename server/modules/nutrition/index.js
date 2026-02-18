@@ -11,13 +11,13 @@ router.get('/status', (req, res) => {
 
 // POST /api/nutrition/water
 // body: { volumeMl: number, timestamp?: ISOString }
-router.post('/water', (req, res) => {
+router.post('/water', async (req, res) => {
   try {
     const { volumeMl, timestamp } = req.body;
     if (!volumeMl || isNaN(volumeMl) || Number(volumeMl) <= 0) {
       return res.status(400).json({ error: 'volumeMl must be a positive number' });
     }
-    const entry = service.addWaterEntry({ volumeMl: Number(volumeMl), timestamp });
+    const entry = await service.addWaterEntry({ volumeMl: Number(volumeMl), timestamp });
     res.status(201).json(entry);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -26,10 +26,10 @@ router.post('/water', (req, res) => {
 
 // GET /api/nutrition/water/entries
 // optional query: since=ISOString
-router.get('/water/entries', (req, res) => {
+router.get('/water/entries', async (req, res) => {
   const { since } = req.query;
   try {
-    const list = service.listEntries({ since });
+    const list = await service.listEntries({ since });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -37,10 +37,10 @@ router.get('/water/entries', (req, res) => {
 });
 
 // GET /api/nutrition/water/summary?period=daily|weekly|monthly
-router.get('/water/summary', (req, res) => {
+router.get('/water/summary', async (req, res) => {
   const { period = 'daily' } = req.query;
   try {
-    const summary = service.sumForPeriod(period);
+    const summary = await service.sumForPeriod(period);
     res.json(summary);
   } catch (err) {
     res.status(400).json({ error: String(err) });
@@ -48,9 +48,9 @@ router.get('/water/summary', (req, res) => {
 });
 
 // DELETE /api/nutrition/water/reset
-router.delete('/water/reset', (req, res) => {
+router.delete('/water/reset', async (req, res) => {
   try {
-    const result = service.resetWaterEntries();
+    const result = await service.resetWaterEntries();
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -70,17 +70,21 @@ router.get('/search', async (req, res) => {
 });
 
 // POST /api/nutrition/foods (user submits a food with calorie/macro info)
-router.post('/foods', (req, res)  => {
+router.post('/foods', async (req, res) => {
   const { foodName, calories, protein, carbs, fat, timestamp } = req.body;
-  const entry = service.addFoodEntry({ foodName, calories, protein, carbs, fat, timestamp });
-  res.status(201).json(entry);
+  try {
+    const entry = await service.addFoodEntry({ foodName, calories, protein, carbs, fat, timestamp });
+    res.status(201).json(entry);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // GET /api/nutrition/foods
-router.get('/foods', (req, res) => {
+router.get('/foods', async (req, res) => {
   const { since } = req.query;
   try {
-    const entries = service.getFoodEntries({ since });
+    const entries = await service.getFoodEntries({ since });
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -88,10 +92,10 @@ router.get('/foods', (req, res) => {
 });
 
 // DELETE /api/nutrition/foods/:id
-router.delete('/foods/:id', (req, res) => {
+router.delete('/foods/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = service.deleteFoodEntry(id);
+    const result = await service.deleteFoodEntry(id);
     res.json(result);
   } catch (err) {
     res.status(404).json({ error: String(err) });
@@ -99,21 +103,25 @@ router.delete('/foods/:id', (req, res) => {
 });
 
 // GET /api/nutrition/foods/summary
-router.get('/foods/summary',  (req, res) => {
+router.get('/foods/summary', async (req, res) => {
   const { period = 'daily' } = req.query;
-  const summary = service.getMacroSummary(period);
-  res.json(summary);
+  try {
+    const summary = await service.getMacroSummary(period);
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // POST /api/nutrition/meals
 // body: { name: string, foods: [{foodName, calories, protein, carbs, fat}], timestamp?: ISOString }
-router.post('/meals', (req, res) => {
+router.post('/meals', async (req, res) => {
   try {
     const { name, foods, timestamp } = req.body;
     if (!name || !foods || !Array.isArray(foods)) {
       return res.status(400).json({ error: 'name and foods array required' });
     }
-    const meal = service.addMeal({ name, foods, timestamp });
+    const meal = await service.addMeal({ name, foods, timestamp });
     res.status(201).json(meal);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -121,10 +129,10 @@ router.post('/meals', (req, res) => {
 });
 
 // GET /api/nutrition/meals
-router.get('/meals', (req, res) => {
+router.get('/meals', async (req, res) => {
   const { since } = req.query;
   try {
-    const meals = service.getMeals({ since });
+    const meals = await service.getMeals({ since });
     res.json(meals);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -132,11 +140,11 @@ router.get('/meals', (req, res) => {
 });
 
 // PUT /api/nutrition/meals/:id
-router.put('/meals/:id', (req, res) => {
+router.put('/meals/:id', async (req, res) => {
   const { id } = req.params;
   const { name, foods } = req.body;
   try {
-    const updated = service.updateMeal(id, { name, foods });
+    const updated = await service.updateMeal(id, { name, foods });
     res.json(updated);
   } catch (err) {
     res.status(404).json({ error: String(err) });
@@ -144,10 +152,10 @@ router.put('/meals/:id', (req, res) => {
 });
 
 // DELETE /api/nutrition/meals/:id
-router.delete('/meals/:id', (req, res) => {
+router.delete('/meals/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = service.deleteMeal(id);
+    const result = await service.deleteMeal(id);
     res.json(result);
   } catch (err) {
     res.status(404).json({ error: String(err) });

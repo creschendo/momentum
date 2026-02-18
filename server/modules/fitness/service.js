@@ -1,200 +1,264 @@
-let splits = [];
-let nextSplitId = 1;
-let nextDayId = 1;
-let nextLiftId = 1;
-let nextCardioId = 1;
+import pool from '../../db.js';
 
-// Create a new split
-export function addSplit(splitData) {
-  const daysCount = Math.max(Number(splitData.days ?? splitData.daysCount ?? 1), 1);
-  const days = Array.from({ length: daysCount }, (_, index) => ({
-    id: nextDayId++,
-    name: `Day ${index + 1}`,
-    lifts: [],
-    cardio: []
+// Helper to fetch a split with all its data
+async function fetchSplitWithDays(splitId) {
+  const splitResult = await pool.query(
+    'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits WHERE id = $1',
+    [splitId]
+  );
+  
+  if (splitResult.rows.length === 0) return null;
+  
+  const split = splitResult.rows[0];
+  
+  // Fetch all days for this split
+  const daysResult = await pool.query(
+    `SELECT sd.id, sd.day_number as "dayNumber", sd.day_name as "dayName"
+     FROM split_days sd
+     WHERE sd.split_id = $1
+     ORDER BY sd.day_number ASC`,
+    [splitId]
+  );
+  
+  split.days = await Promise.all(daysResult.rows.map(async (day) => {
+    // Fetch lifts for this day
+    const liftsResult = await pool.query(
+      `SELECT id, exercise_name as "exerciseName", sets, reps, weight FROM lifts WHERE day_id = $1`,
+      [day.id]
+    );
+    
+    // Fetch cardio for this day
+    const cardioResult = await pool.query(
+      `SELECT id, exercise_name as "exerciseName", duration_minutes as "durationMinutes", intensity FROM cardio WHERE day_id = $1`,
+      [day.id]
+    );
+    
+    return {
+      id: day.id,
+      name: day.dayName || `Day ${day.dayNumber}`,
+      lifts: liftsResult.rows,
+      cardio: cardioResult.rows
+    };
   }));
-  const split = {
-    id: nextSplitId++,
-    ...splitData,
-    daysCount,
-    days,
-    createdAt: new Date().toISOString()
-  };
-  splits.push(split);
+  
   return split;
 }
 
-// Get all splits
-function ensureDays(split) {
-  const daysCount = Number(split.daysCount ?? split.days ?? 0);
-  if (!Number.isFinite(daysCount) || daysCount <= 0) return split;
-  if (!Array.isArray(split.days)) {
-    split.days = [];
-  }
-  while (split.days.length < daysCount) {
+// Create a new split
+export async function addSplit(splitData) {
+  const daysCount = Math.max(Number(splitData.days ?? splitData.daysCount ?? 1), 1);
+  const now = new Date();
+  
+  const splitResult = await pool.query(
+    'INSERT INTO splits (name, description, days_count, created_at) VALUES ($1, $2, $3, $4) RETURNING id, name, description, days_count as "daysCount", created_at as "createdAt"',
+    [splitData.name || '', splitData.description || '', daysCount, now]
+  );
+  
+  const split = splitResult.rows[0];
+  split.days = [];
+  
+  // Create days for this split
+  for (let i = 1; i <= daysCount; i++) {
+    const dayResult = await pool.query(
+      'INSERT INTO split_days (split_id, day_number, day_name) VALUES ($1, $2, $3) RETURNING id',
+      [split.id, i, `Day ${i}`]
+    );
     split.days.push({
-      id: nextDayId++,
-      name: `Day ${split.days.length + 1}`,
+      id: dayResult.rows[0].id,
+      name: `Day ${i}`,
       lifts: [],
       cardio: []
     });
   }
+  
   return split;
 }
 
-export function getSplits() {
-  splits.forEach(ensureDays);
-  return splits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+// Get all splits
+export async function getSplits() {
+  const splitsResult = await pool.query(
+    'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits ORDER BY created_at DESC'
+  );
+  
+  return Promise.all(splitsResult.rows.map(async (split) => {
+    return fetchSplitWithDays(split.id);
+  }));
 }
 
 // Get a single split
-export function getSplit(id) {
-  const split = splits.find(s => s.id === Number(id));
-  if (!split) return null;
-  return ensureDays(split);
+export async function getSplit(id) {
+  return fetchSplitWithDays(id);
 }
 
 // Update a split
-export function updateSplit(id, updates) {
-  const split = getSplit(id);
+export async function updateSplit(id, updates) {
+  const split = await getSplit(id);
   if (!split) return null;
   
-  // Handle daysCount updates - add or remove days as needed
+  // Update split metadata
+  if (updates.name !== undefined || updates.description !== undefined) {
+    await pool.query(
+      'UPDATE splits SET name = COALESCE($1, name), description = COALESCE($2, description) WHERE id = $3',
+      [updates.name, updates.description, id]
+    );
+  }
+  
+  // Handle daysCount updates
   if (updates.daysCount !== undefined) {
     const newDaysCount = Math.max(Number(updates.daysCount), 1);
-    const currentDaysCount = split.days?.length || 0;
+    const currentDaysCount = split.days.length;
     
     if (newDaysCount > currentDaysCount) {
       // Add new days
-      for (let i = currentDaysCount; i < newDaysCount; i++) {
-        split.days.push({
-          id: nextDayId++,
-          name: `Day ${i + 1}`,
-          lifts: [],
-          cardio: []
-        });
+      for (let i = currentDaysCount + 1; i <= newDaysCount; i++) {
+        await pool.query(
+          'INSERT INTO split_days (split_id, day_number, day_name) VALUES ($1, $2, $3)',
+          [id, i, `Day ${i}`]
+        );
       }
     } else if (newDaysCount < currentDaysCount) {
       // Remove days from the end
-      split.days = split.days.slice(0, newDaysCount);
+      const daysToRemove = split.days.slice(newDaysCount);
+      for (const day of daysToRemove) {
+        await pool.query('DELETE FROM split_days WHERE id = $1', [day.id]);
+      }
     }
     
-    split.daysCount = newDaysCount;
+    await pool.query('UPDATE splits SET days_count = $1 WHERE id = $2', [newDaysCount, id]);
   }
   
-  // Apply other updates
-  Object.assign(split, updates);
-  return split;
+  return fetchSplitWithDays(id);
 }
 
 // Delete a split
-export function deleteSplit(id) {
-  const index = splits.findIndex(s => s.id === Number(id));
-  if (index === -1) return false;
-  splits.splice(index, 1);
-  return true;
+export async function deleteSplit(id) {
+  const result = await pool.query('DELETE FROM splits WHERE id = $1', [id]);
+  return result.rowCount > 0;
 }
 
 // Add day to split
-export function addDayToSplit(splitId, dayData) {
-  const split = getSplit(splitId);
+export async function addDayToSplit(splitId, dayData) {
+  const split = await getSplit(splitId);
   if (!split) return null;
-  const day = {
-    id: nextDayId++,
-    ...dayData,
+  
+  const nextDayNumber = split.days.length + 1;
+  const dayName = dayData?.name || `Day ${nextDayNumber}`;
+  
+  const result = await pool.query(
+    'INSERT INTO split_days (split_id, day_number, day_name) VALUES ($1, $2, $3) RETURNING id',
+    [splitId, nextDayNumber, dayName]
+  );
+  
+  return {
+    id: result.rows[0].id,
+    name: dayName,
     lifts: [],
     cardio: []
   };
-  split.days.push(day);
-  return day;
 }
 
 // Update day in split
-export function updateDayInSplit(splitId, dayId, updates) {
-  const split = getSplit(splitId);
-  if (!split) return null;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return null;
-  Object.assign(day, updates);
-  return day;
+export async function updateDayInSplit(splitId, dayId, updates) {
+  const result = await pool.query(
+    'UPDATE split_days SET day_name = COALESCE($1, day_name) WHERE id = $2 AND split_id = $3 RETURNING id, day_name as "dayName"',
+    [updates.name, dayId, splitId]
+  );
+  
+  if (result.rows.length === 0) return null;
+  
+  return {
+    id: result.rows[0].id,
+    name: result.rows[0].dayName,
+    lifts: [],
+    cardio: []
+  };
 }
 
 // Remove day from split
-export function removeDayFromSplit(splitId, dayId) {
-  const split = getSplit(splitId);
-  if (!split) return false;
-  const index = split.days.findIndex(d => d.id === Number(dayId));
-  if (index === -1) return false;
-  split.days.splice(index, 1);
-  return true;
+export async function removeDayFromSplit(splitId, dayId) {
+  const result = await pool.query(
+    'DELETE FROM split_days WHERE id = $1 AND split_id = $2',
+    [dayId, splitId]
+  );
+  return result.rowCount > 0;
 }
 
 // Add lift to day
-export function addLiftToDay(splitId, dayId, lift) {
-  const split = getSplit(splitId);
-  if (!split) return null;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return null;
-  const liftWithId = { id: nextLiftId++, ...lift };
-  day.lifts.push(liftWithId);
-  return liftWithId;
+export async function addLiftToDay(splitId, dayId, lift) {
+  // Verify day exists and belongs to split
+  const dayCheck = await pool.query(
+    'SELECT sd.id FROM split_days sd WHERE sd.id = $1 AND sd.split_id = $2',
+    [dayId, splitId]
+  );
+  
+  if (dayCheck.rows.length === 0) return null;
+  
+  const result = await pool.query(
+    'INSERT INTO lifts (day_id, exercise_name, sets, reps, weight) VALUES ($1, $2, $3, $4, $5) RETURNING id, exercise_name as "exerciseName", sets, reps, weight',
+    [dayId, lift.exerciseName || '', lift.sets, lift.reps, lift.weight]
+  );
+  
+  return result.rows[0];
 }
 
 // Update lift in day
-export function updateLiftInDay(splitId, dayId, liftId, updates) {
-  const split = getSplit(splitId);
-  if (!split) return null;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return null;
-  const lift = day.lifts.find(l => l.id === Number(liftId));
-  if (!lift) return null;
-  Object.assign(lift, updates);
-  return lift;
+export async function updateLiftInDay(splitId, dayId, liftId, updates) {
+  const result = await pool.query(
+    `UPDATE lifts SET exercise_name = COALESCE($1, exercise_name), sets = COALESCE($2, sets), 
+     reps = COALESCE($3, reps), weight = COALESCE($4, weight)
+     WHERE id = $5 AND day_id = $6 AND day_id IN (SELECT id FROM split_days WHERE split_id = $7)
+     RETURNING id, exercise_name as "exerciseName", sets, reps, weight`,
+    [updates.exerciseName, updates.sets, updates.reps, updates.weight, liftId, dayId, splitId]
+  );
+  
+  return result.rows.length > 0 ? result.rows[0] : null;
 }
 
 // Remove lift from day
-export function removeLiftFromDay(splitId, dayId, liftId) {
-  const split = getSplit(splitId);
-  if (!split) return false;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return false;
-  const index = day.lifts.findIndex(l => l.id === Number(liftId));
-  if (index === -1) return false;
-  day.lifts.splice(index, 1);
-  return true;
+export async function removeLiftFromDay(splitId, dayId, liftId) {
+  const result = await pool.query(
+    `DELETE FROM lifts WHERE id = $1 AND day_id = $2 AND day_id IN (SELECT id FROM split_days WHERE split_id = $3)`,
+    [liftId, dayId, splitId]
+  );
+  return result.rowCount > 0;
 }
 
 // Add cardio to day
-export function addCardioToDay(splitId, dayId, cardio) {
-  const split = getSplit(splitId);
-  if (!split) return null;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return null;
-  const cardioWithId = { id: nextCardioId++, ...cardio };
-  day.cardio.push(cardioWithId);
-  return cardioWithId;
+export async function addCardioToDay(splitId, dayId, cardio) {
+  // Verify day exists and belongs to split
+  const dayCheck = await pool.query(
+    'SELECT sd.id FROM split_days sd WHERE sd.id = $1 AND sd.split_id = $2',
+    [dayId, splitId]
+  );
+  
+  if (dayCheck.rows.length === 0) return null;
+  
+  const result = await pool.query(
+    'INSERT INTO cardio (day_id, exercise_name, duration_minutes, intensity) VALUES ($1, $2, $3, $4) RETURNING id, exercise_name as "exerciseName", duration_minutes as "durationMinutes", intensity',
+    [dayId, cardio.exerciseName || '', cardio.durationMinutes, cardio.intensity]
+  );
+  
+  return result.rows[0];
 }
 
 // Update cardio in day
-export function updateCardioInDay(splitId, dayId, cardioId, updates) {
-  const split = getSplit(splitId);
-  if (!split) return null;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return null;
-  const cardioSession = day.cardio.find(c => c.id === Number(cardioId));
-  if (!cardioSession) return null;
-  Object.assign(cardioSession, updates);
-  return cardioSession;
+export async function updateCardioInDay(splitId, dayId, cardioId, updates) {
+  const result = await pool.query(
+    `UPDATE cardio SET exercise_name = COALESCE($1, exercise_name), duration_minutes = COALESCE($2, duration_minutes), 
+     intensity = COALESCE($3, intensity)
+     WHERE id = $4 AND day_id = $5 AND day_id IN (SELECT id FROM split_days WHERE split_id = $6)
+     RETURNING id, exercise_name as "exerciseName", duration_minutes as "durationMinutes", intensity`,
+    [updates.exerciseName, updates.durationMinutes, updates.intensity, cardioId, dayId, splitId]
+  );
+  
+  return result.rows.length > 0 ? result.rows[0] : null;
 }
 
 // Remove cardio from day
-export function removeCardioFromDay(splitId, dayId, cardioId) {
-  const split = getSplit(splitId);
-  if (!split) return false;
-  const day = split.days.find(d => d.id === Number(dayId));
-  if (!day) return false;
-  const index = day.cardio.findIndex(c => c.id === Number(cardioId));
-  if (index === -1) return false;
-  day.cardio.splice(index, 1);
-  return true;
+export async function removeCardioFromDay(splitId, dayId, cardioId) {
+  const result = await pool.query(
+    `DELETE FROM cardio WHERE id = $1 AND day_id = $2 AND day_id IN (SELECT id FROM split_days WHERE split_id = $3)`,
+    [cardioId, dayId, splitId]
+  );
+  return result.rowCount > 0;
 }
