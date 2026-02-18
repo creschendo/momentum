@@ -19,6 +19,14 @@ export default function Splits() {
   // Cardio forms state
   const [cardioForms, setCardioForms] = useState({});
 
+  // Single operation state - ensures only one operation at a time
+  const [activeOperation, setActiveOperation] = useState(null);
+  
+  // Drag state for reordering days
+  const [draggedDay, setDraggedDay] = useState(null);
+  const [dragOverDay, setDragOverDay] = useState(null);
+  const [reorderedDays, setReorderedDays] = useState({}); // Track day reordering per split
+  
   // Edit mode state
   const [editingLift, setEditingLift] = useState(null);
   const [editingCardio, setEditingCardio] = useState(null);
@@ -27,10 +35,6 @@ export default function Splits() {
   const [editingDaysCount, setEditingDaysCount] = useState(1);
   const [editingDayKey, setEditingDayKey] = useState(null);
   const [editingDayName, setEditingDayName] = useState('');
-  
-  // Form open/close state
-  const [openLiftForm, setOpenLiftForm] = useState(null); // splitId-dayId
-  const [openCardioForm, setOpenCardioForm] = useState(null); // splitId-dayId
 
   const handleCreateSplit = async (e) => {
     e.preventDefault();
@@ -88,13 +92,13 @@ export default function Splits() {
 
     try {
       await addLift(splitId, dayId, {
-        name: form.name,
+        exerciseName: form.name,
         weight: form.weight || '',
         sets: parseInt(form.sets) || 3,
         reps: parseInt(form.reps) || 8
       });
       setLiftForms({ ...liftForms, [formKey]: { name: '', weight: '', sets: 3, reps: 8 } });
-      setOpenLiftForm(null);
+      setActiveOperation(null);
     } catch (err) {
       console.error('Failed to add lift:', err);
     }
@@ -103,7 +107,13 @@ export default function Splits() {
   const handleUpdateLift = async (splitId, dayId, liftId) => {
     if (!editingLift) return;
     try {
-      await updateLift(splitId, dayId, liftId, editingLift);
+      await updateLift(splitId, dayId, liftId, {
+        exerciseName: editingLift.exerciseName,
+        sets: editingLift.sets,
+        reps: editingLift.reps,
+        weight: editingLift.weight
+      });
+      setActiveOperation(null);
       setEditingLift(null);
     } catch (err) {
       console.error('Failed to update lift:', err);
@@ -113,7 +123,7 @@ export default function Splits() {
   const handleDeleteLift = async (splitId, dayId, liftId) => {
     try {
       await deleteLift(splitId, dayId, liftId);
-      if (editingLift?.id === liftId) setEditingLift(null);
+      setActiveOperation(null);
     } catch (err) {
       console.error('Failed to delete lift:', err);
     }
@@ -126,13 +136,12 @@ export default function Splits() {
 
     try {
       await addCardio(splitId, dayId, {
-        type: form?.type || 'Treadmill',
-        speed: parseFloat(form?.speed) || 6,
-        incline: parseFloat(form?.incline) || 0,
-        duration: parseInt(form?.duration) || 20
+        exerciseName: form?.exerciseName || 'Treadmill',
+        durationMinutes: parseInt(form?.durationMinutes) || 20,
+        intensity: form?.intensity || 'moderate'
       });
-      setCardioForms({ ...cardioForms, [formKey]: { type: 'Treadmill', speed: 6, incline: 0, duration: 20 } });
-      setOpenCardioForm(null);
+      setCardioForms({ ...cardioForms, [formKey]: { exerciseName: 'Treadmill', durationMinutes: 20, intensity: 'moderate' } });
+      setActiveOperation(null);
     } catch (err) {
       console.error('Failed to add cardio:', err);
     }
@@ -141,7 +150,12 @@ export default function Splits() {
   const handleUpdateCardio = async (splitId, dayId, cardioId) => {
     if (!editingCardio) return;
     try {
-      await updateCardio(splitId, dayId, cardioId, editingCardio);
+      await updateCardio(splitId, dayId, cardioId, {
+        exerciseName: editingCardio.exerciseName,
+        durationMinutes: editingCardio.durationMinutes,
+        intensity: editingCardio.intensity
+      });
+      setActiveOperation(null);
       setEditingCardio(null);
     } catch (err) {
       console.error('Failed to update cardio:', err);
@@ -151,7 +165,7 @@ export default function Splits() {
   const handleDeleteCardio = async (splitId, dayId, cardioId) => {
     try {
       await deleteCardio(splitId, dayId, cardioId);
-      if (editingCardio?.id === cardioId) setEditingCardio(null);
+      setActiveOperation(null);
     } catch (err) {
       console.error('Failed to delete cardio:', err);
     }
@@ -187,6 +201,57 @@ export default function Splits() {
         [field]: value
       }
     });
+  };
+
+  // Drag and drop handlers for reordering days
+  const handleDragStart = (e, day, splitId) => {
+    // Hide the default drag image
+    const emptyImage = new Image();
+    e.dataTransfer.setDragImage(emptyImage, 0, 0);
+    
+    setDraggedDay({ day, splitId });
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetDay, splitId) => {
+    e.preventDefault();
+    if (!draggedDay || draggedDay.splitId !== splitId) return;
+
+    const draggedDayId = draggedDay.day.id;
+    const targetDayId = targetDay.id;
+
+    if (draggedDayId === targetDayId) {
+      setDraggedDay(null);
+      setDragOverDay(null);
+      return;
+    }
+
+    // Get the current days for this split (either reordered or from splits)
+    const currentSplit = splits.find((s) => s.id === splitId);
+    const currentDays = reorderedDays[splitId] || currentSplit?.days || [];
+
+    const days = [...currentDays];
+    const draggedIndex = days.findIndex((d) => d.id === draggedDayId);
+    const targetIndex = days.findIndex((d) => d.id === targetDayId);
+
+    // Remove dragged day and insert at target position
+    const [draggedDayObj] = days.splice(draggedIndex, 1);
+    days.splice(targetIndex, 0, draggedDayObj);
+
+    // Store the reordered days
+    setReorderedDays({ ...reorderedDays, [splitId]: days });
+
+    setDraggedDay(null);
+    setDragOverDay(null);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDay(null);
   };
 
   if (loading) return <div style={{ color: theme.textMuted }}>Loading splits...</div>;
@@ -330,7 +395,7 @@ export default function Splits() {
                       userSelect: 'none'
                     }}
                   >
-                    {split.title}
+                    {split.name}
                   </h3>
                 )}
               </div>
@@ -425,15 +490,21 @@ export default function Splits() {
                 {/* Days List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {split.days && split.days.length > 0 ? (
-                    split.days.map((day) => (
+                    (reorderedDays[split.id] || split.days).map((day) => (
                     <div
                       key={day.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, day, split.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, day, split.id)}
+                      onDragLeave={handleDragLeave}
                       style={{
-                        border: `1px solid ${expandedDay === day.id ? '#0066FF' : theme.border}`,
+                        border: `1px solid ${expandedDay === day.id ? '#0066FF' : dragOverDay?.id === day.id ? '#48bb78' : theme.border}`,
                         borderRadius: 6,
                         padding: 12,
-                        backgroundColor: theme.bg,
-                        transition: 'border-color 0.2s'
+                        backgroundColor: dragOverDay?.id === day.id ? theme.bgSecondary : theme.bg,
+                        transition: 'border-color 0.15s, background-color 0.15s, opacity 0.15s',
+                        opacity: draggedDay?.day.id === day.id ? 0.5 : 1
                       }}
                     >
                       {/* Day Header */}
@@ -550,7 +621,12 @@ export default function Splits() {
                       {expandedDay === day.id && (
                         <div style={{ marginTop: 12 }}>
                           <div style={{ padding: 12, backgroundColor: theme.bgSecondary, borderRadius: 6, marginBottom: 12, fontSize: 13, color: theme.text }}>
-                            Day {day.id} expanded - {day.lifts?.length || 0} lifts, {day.cardio?.length || 0} cardio sessions
+                            <div style={{ marginBottom: 8 }}>
+                              <strong>Lifts:</strong> {day.lifts?.length > 0 ? day.lifts.map(l => l.exerciseName).join(', ') : 'None'}
+                            </div>
+                            <div>
+                              <strong>Cardio:</strong> {day.cardio?.length > 0 ? day.cardio.map(c => c.exerciseName).join(', ') : 'None'}
+                            </div>
                           </div>
                           
                           {/* Lifts Section */}
@@ -577,8 +653,8 @@ export default function Splits() {
                                             </label>
                                             <input
                                               type="text"
-                                              value={editingLift.name}
-                                              onChange={(e) => setEditingLift({ ...editingLift, name: e.target.value })}
+                                              value={editingLift.exerciseName || ''}
+                                              onChange={(e) => setEditingLift({ ...editingLift, exerciseName: e.target.value })}
                                               style={{
                                                 width: '100%',
                                                 padding: '6px 8px',
@@ -669,7 +745,10 @@ export default function Splits() {
                                               Save
                                             </button>
                                             <button
-                                              onClick={() => setEditingLift(null)}
+                                              onClick={() => {
+                                                setActiveOperation(null);
+                                                setEditingLift(null);
+                                              }}
                                               style={{
                                                 flex: 1,
                                                 padding: '6px 12px',
@@ -702,7 +781,7 @@ export default function Splits() {
                                       }}>
                                         <div style={{ flex: 1 }}>
                                           <div style={{ fontSize: 13, fontWeight: 500, color: theme.text, marginBottom: 4 }}>
-                                            {lift.name}
+                                            {lift.exerciseName}
                                           </div>
                                           <div style={{ fontSize: 11, color: theme.textMuted }}>
                                             <span style={{ fontWeight: 500 }}>Weight:</span> {lift.weight || 'N/A'} • <span style={{ fontWeight: 500 }}>Sets:</span> {lift.sets} × <span style={{ fontWeight: 500 }}>Reps:</span> {lift.reps}
@@ -710,7 +789,10 @@ export default function Splits() {
                                         </div>
                                         <div style={{ display: 'flex', gap: 6 }}>
                                           <button
-                                            onClick={() => setEditingLift({ ...lift })}
+                                            onClick={() => {
+                                              setActiveOperation(`edit-lift-${lift.id}`);
+                                              setEditingLift({ ...lift });
+                                            }}
                                             style={{
                                               padding: '4px 10px',
                                               backgroundColor: '#0066FF',
@@ -752,7 +834,15 @@ export default function Splits() {
                             )}
 
                             <button
-                              onClick={() => setOpenLiftForm(openLiftForm === `${split.id}-${day.id}` ? null : `${split.id}-${day.id}`)}
+                              onClick={() => {
+                                if (activeOperation === `add-lift-${split.id}-${day.id}`) {
+                                  setActiveOperation(null);
+                                  const formKey = `${split.id}-${day.id}`;
+                                  setLiftForms({ ...liftForms, [formKey]: { name: '', weight: '', sets: 3, reps: 8 } });
+                                } else {
+                                  setActiveOperation(`add-lift-${split.id}-${day.id}`);
+                                }
+                              }}
                               style={{
                                 padding: '8px 16px',
                                 backgroundColor: '#48bb78',
@@ -767,11 +857,11 @@ export default function Splits() {
                               onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
                               onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
                             >
-                              {openLiftForm === `${split.id}-${day.id}` ? 'Cancel' : '+ Add Lift'}
+                              {activeOperation === `add-lift-${split.id}-${day.id}` ? 'Cancel' : '+ Add Lift'}
                             </button>
 
                             {/* Add Lift Form */}
-                            {openLiftForm === `${split.id}-${day.id}` && (
+                            {activeOperation === `add-lift-${split.id}-${day.id}` && (
                             <form onSubmit={(e) => handleAddLift(split.id, day.id, e)}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 <div>
@@ -885,8 +975,8 @@ export default function Splits() {
                                               Type
                                             </label>
                                             <select
-                                              value={editingCardio.type}
-                                              onChange={(e) => setEditingCardio({ ...editingCardio, type: e.target.value })}
+                                              value={editingCardio.exerciseName || ''}
+                                              onChange={(e) => setEditingCardio({ ...editingCardio, exerciseName: e.target.value })}
                                               style={{
                                                 width: '80%',
                                                 padding: '6px 8px',
@@ -905,52 +995,31 @@ export default function Splits() {
                                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                                             <div>
                                               <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>
-                                                Speed
-                                              </label>
-                                              <input
-                                                type="number"
-                                                step="0.1"
-                                                value={editingCardio.speed}
-                                                onChange={(e) => setEditingCardio({ ...editingCardio, speed: e.target.value })}
-                                                style={{
-                                                  width: '100%',
-                                                  padding: '6px 8px',
-                                                  border: `1px solid ${theme.border}`,
-                                                  borderRadius: 4,
-                                                  fontSize: 13,
-                                                  backgroundColor: theme.bg,
-                                                  color: theme.text
-                                                }}
-                                              />
-                                            </div>
-                                            <div>
-                                              <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>
-                                                Incline
-                                              </label>
-                                              <input
-                                                type="number"
-                                                step="0.5"
-                                                value={editingCardio.incline}
-                                                onChange={(e) => setEditingCardio({ ...editingCardio, incline: e.target.value })}
-                                                style={{
-                                                  width: '100%',
-                                                  padding: '6px 8px',
-                                                  border: `1px solid ${theme.border}`,
-                                                  borderRadius: 4,
-                                                  fontSize: 13,
-                                                  backgroundColor: theme.bg,
-                                                  color: theme.text
-                                                }}
-                                              />
-                                            </div>
-                                            <div>
-                                              <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>
                                                 Duration (min)
                                               </label>
                                               <input
                                                 type="number"
-                                                value={editingCardio.duration}
-                                                onChange={(e) => setEditingCardio({ ...editingCardio, duration: e.target.value })}
+                                                value={editingCardio.durationMinutes || ''}
+                                                onChange={(e) => setEditingCardio({ ...editingCardio, durationMinutes: e.target.value })}
+                                                style={{
+                                                  width: '100%',
+                                                  padding: '6px 8px',
+                                                  border: `1px solid ${theme.border}`,
+                                                  borderRadius: 4,
+                                                  fontSize: 13,
+                                                  backgroundColor: theme.bg,
+                                                  color: theme.text
+                                                }}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>
+                                                Intensity
+                                              </label>
+                                              <input
+                                                type="text"
+                                                value={editingCardio.intensity || ''}
+                                                onChange={(e) => setEditingCardio({ ...editingCardio, intensity: e.target.value })}
                                                 style={{
                                                   width: '100%',
                                                   padding: '6px 8px',
@@ -983,7 +1052,10 @@ export default function Splits() {
                                               Save
                                             </button>
                                             <button
-                                              onClick={() => setEditingCardio(null)}
+                                              onClick={() => {
+                                                setActiveOperation(null);
+                                                setEditingCardio(null);
+                                              }}
                                               style={{
                                                 flex: 1,
                                                 padding: '6px 12px',
@@ -1016,15 +1088,15 @@ export default function Splits() {
                                       }}>
                                         <div style={{ flex: 1 }}>
                                           <div style={{ fontSize: 13, fontWeight: 500, color: theme.text, marginBottom: 4 }}>
-                                            {cardio.type}
+                                            {cardio.exerciseName || 'Cardio'}
                                           </div>
                                           <div style={{ fontSize: 11, color: theme.textMuted }}>
-                                            <span style={{ fontWeight: 500 }}>Speed:</span> {cardio.speed} • <span style={{ fontWeight: 500 }}>Incline:</span> {cardio.incline}% • <span style={{ fontWeight: 500 }}>Duration:</span> {cardio.duration}m
+                                            <span style={{ fontWeight: 500 }}>Duration:</span> {cardio.durationMinutes}m • <span style={{ fontWeight: 500 }}>Intensity:</span> {cardio.intensity || 'N/A'}
                                           </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: 6 }}>
                                           <button
-                                            onClick={() => setEditingCardio({ ...cardio })}
+                                            onClick={() => { setActiveOperation(`edit-cardio-${cardio.id}`); setEditingCardio({ ...cardio }); }}
                                             style={{
                                               padding: '4px 10px',
                                               backgroundColor: '#0066FF',
@@ -1066,7 +1138,15 @@ export default function Splits() {
                             )}
 
                             <button
-                              onClick={() => setOpenCardioForm(openCardioForm === `${split.id}-${day.id}` ? null : `${split.id}-${day.id}`)}
+                              onClick={() => {
+                                if (activeOperation === `add-cardio-${split.id}-${day.id}`) {
+                                  setActiveOperation(null);
+                                  const formKey = `${split.id}-${day.id}`;
+                                  setCardioForms({ ...cardioForms, [formKey]: { exerciseName: 'Treadmill', durationMinutes: 20, intensity: 'moderate' } });
+                                } else {
+                                  setActiveOperation(`add-cardio-${split.id}-${day.id}`);
+                                }
+                              }}
                               style={{
                                 padding: '8px 16px',
                                 backgroundColor: '#48bb78',
@@ -1081,18 +1161,18 @@ export default function Splits() {
                               onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
                               onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
                             >
-                              {openCardioForm === `${split.id}-${day.id}` ? 'Cancel' : '+ Add Cardio'}
+                              {activeOperation === `add-cardio-${split.id}-${day.id}` ? 'Cancel' : '+ Add Cardio'}
                             </button>
 
                             {/* Add Cardio Form */}
-                            {openCardioForm === `${split.id}-${day.id}` && (
+                            {activeOperation === `add-cardio-${split.id}-${day.id}` && (
                             <form onSubmit={(e) => handleAddCardio(split.id, day.id, e)}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 <div>
                                   <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>Type</label>
                                   <select
-                                    value={getCardioFormValue(split.id, day.id, 'type', 'Treadmill')}
-                                    onChange={(e) => setCardioFormValue(split.id, day.id, 'type', e.target.value)}
+                                    value={getCardioFormValue(split.id, day.id, 'exerciseName', 'Treadmill')}
+                                    onChange={(e) => setCardioFormValue(split.id, day.id, 'exerciseName', e.target.value)}
                                     style={{
                                       width: '100%',
                                       padding: '4px 8px',
@@ -1110,43 +1190,27 @@ export default function Splits() {
                                   </select>
                                 </div>
                                 <div>
-                                  <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>Speed, Incline, Duration</label>
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, width: '100%' }}>
+                                  <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>Duration (min), Intensity</label>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, width: '100%' }}>
                                     <input
                                       type="number"
-                                      step="0.1"
-                                      value={getCardioFormValue(split.id, day.id, 'speed', 6)}
-                                      onChange={(e) => setCardioFormValue(split.id, day.id, 'speed', e.target.value)}
-                                      placeholder="6.0"
-                                      style={{
-                                        padding: '4px 6px',
-                                        border: `1px solid ${theme.border}`,
-                                        borderRadius: 4,
-                                        fontSize: 12,
-                                        backgroundColor: theme.bg,
-                                        color: theme.text
-                                      }}
-                                    />
-                                    <input
-                                      type="number"
-                                      step="0.5"
-                                      value={getCardioFormValue(split.id, day.id, 'incline', 0)}
-                                      onChange={(e) => setCardioFormValue(split.id, day.id, 'incline', e.target.value)}
-                                      placeholder="0"
-                                      style={{
-                                        padding: '4px 6px',
-                                        border: `1px solid ${theme.border}`,
-                                        borderRadius: 4,
-                                        fontSize: 12,
-                                        backgroundColor: theme.bg,
-                                        color: theme.text
-                                      }}
-                                    />
-                                    <input
-                                      type="number"
-                                      value={getCardioFormValue(split.id, day.id, 'duration', 20)}
-                                      onChange={(e) => setCardioFormValue(split.id, day.id, 'duration', e.target.value)}
+                                      value={getCardioFormValue(split.id, day.id, 'durationMinutes', 20)}
+                                      onChange={(e) => setCardioFormValue(split.id, day.id, 'durationMinutes', e.target.value)}
                                       placeholder="20"
+                                      style={{
+                                        padding: '4px 6px',
+                                        border: `1px solid ${theme.border}`,
+                                        borderRadius: 4,
+                                        fontSize: 12,
+                                        backgroundColor: theme.bg,
+                                        color: theme.text
+                                      }}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={getCardioFormValue(split.id, day.id, 'intensity', 'moderate')}
+                                      onChange={(e) => setCardioFormValue(split.id, day.id, 'intensity', e.target.value)}
+                                      placeholder="moderate"
                                       style={{
                                         padding: '4px 6px',
                                         border: `1px solid ${theme.border}`,

@@ -1,7 +1,7 @@
 const productivity = {
   key: 'productivity',
   title: 'Productivity',
-  description: 'Tasks, timers, notes, and general productivity tools.'
+  description: 'Calendar workspace with daily, weekly, and monthly planning views.'
 };
 
 export default productivity;

@@ -76,7 +76,7 @@ export default function useSplits() {
       const updated = await fitnessApi.updateDay(splitId, dayId, updates);
       setSplits(splits.map(s =>
         s.id === splitId
-          ? { ...s, days: s.days.map(d => d.id === dayId ? updated : d) }
+          ? { ...s, days: s.days.map(d => d.id === dayId ? { ...d, ...updated } : d) }
           : s
       ));
       return updated;
