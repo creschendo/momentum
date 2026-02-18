@@ -61,15 +61,67 @@ function getThemeIcon(themeName, color) {
 
 function AppContent() {
   const { theme, currentTheme, isDark, setTheme } = useTheme();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  const getOrdinalSuffix = (day) => {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
+  };
+
+  const formattedDateTime = (() => {
+    const weekday = currentDateTime.toLocaleDateString(undefined, { weekday: 'long' });
+    const month = currentDateTime.toLocaleDateString(undefined, { month: 'long' });
+    const day = currentDateTime.getDate();
+    const time = currentDateTime
+      .toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      .toLowerCase();
+    return `${weekday}, ${month} ${day}${getOrdinalSuffix(day)}, ${time}`;
+  })();
   
+  const normalizeLayout = (value) => {
+    if (!Array.isArray(value) || value.length === 0) {
+      return ['nutrition', 'productivity', 'fitness', null];
+    }
+    const next = [...value];
+    if (next.length < 4) {
+      while (next.length < 4) next.push(null);
+    }
+    if (next.length % 2 !== 0) {
+      next.push(null);
+    }
+    return next;
+  };
+
   // Load layout from localStorage or use default
   const [layout, setLayout] = useState(() => {
     const saved = localStorage.getItem('module-layout');
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        return normalizeLayout(JSON.parse(saved));
+      } catch {
+        return ['nutrition', 'productivity', 'fitness', null];
+      }
     }
-    // Default layout: [quadrant1, quadrant2, quadrant3, quadrant4]
     return ['nutrition', 'productivity', 'fitness', null];
+  });
+
+  const [moduleSpans, setModuleSpans] = useState(() => {
+    const saved = localStorage.getItem('module-spans');
+    if (!saved) return {};
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return {};
+    }
   });
 
   const [draggedModule, setDraggedModule] = useState(null);
@@ -82,6 +134,122 @@ function AppContent() {
   useEffect(() => {
     localStorage.setItem('module-layout', JSON.stringify(layout));
   }, [layout]);
+
+  useEffect(() => {
+    localStorage.setItem('module-spans', JSON.stringify(moduleSpans));
+  }, [moduleSpans]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const isCoveredSlot = (slots, spans, index) => {
+    if (index % 2 === 0) return false;
+    const leftModule = slots[index - 1];
+    return !!leftModule && spans[leftModule] === 2;
+  };
+
+  const isAvailableSlot = (slots, spans, index) => {
+    return slots[index] === null && !isCoveredSlot(slots, spans, index);
+  };
+
+  const ensureRowCapacity = (slots, minIndex) => {
+    const next = [...slots];
+    while (minIndex >= next.length) {
+      next.push(null, null);
+    }
+    return next;
+  };
+
+  const compactLayoutState = (slots, spans) => {
+    const normalized = normalizeLayout(slots);
+    const modulesInOrder = [];
+    const seen = new Set();
+
+    for (let i = 0; i < normalized.length; i += 1) {
+      if (isCoveredSlot(normalized, spans, i)) continue;
+      const moduleKey = normalized[i];
+      if (moduleKey && !seen.has(moduleKey)) {
+        seen.add(moduleKey);
+        modulesInOrder.push(moduleKey);
+      }
+    }
+
+    const sanitizedSpans = Object.fromEntries(
+      Object.entries(spans).filter(([key, value]) => seen.has(key) && value === 2)
+    );
+
+    let compacted = Array.from({ length: Math.max(4, normalized.length) }, () => null);
+
+    const findFirstFitIndex = (span) => {
+      if (span === 2) {
+        for (let i = 0; i < compacted.length; i += 2) {
+          if (compacted[i] === null && compacted[i + 1] === null) {
+            return i;
+          }
+        }
+        compacted = [...compacted, null, null];
+        return compacted.length - 2;
+      }
+
+      for (let i = 0; i < compacted.length; i += 1) {
+        if (compacted[i] === null) return i;
+      }
+
+      compacted = [...compacted, null, null];
+      return compacted.length - 2;
+    };
+
+    modulesInOrder.forEach((moduleKey) => {
+      const span = sanitizedSpans[moduleKey] === 2 ? 2 : 1;
+      const targetIndex = findFirstFitIndex(span);
+      compacted[targetIndex] = moduleKey;
+    });
+
+    while (compacted.length > 4) {
+      const lastRow = compacted.slice(-2);
+      if (lastRow[0] === null && lastRow[1] === null) {
+        compacted = compacted.slice(0, -2);
+      } else {
+        break;
+      }
+    }
+
+    return {
+      layout: normalizeLayout(compacted),
+      spans: sanitizedSpans
+    };
+  };
+
+  const applyLayoutState = (nextLayout, nextSpans) => {
+    const compacted = compactLayoutState(nextLayout, nextSpans);
+    setLayout(compacted.layout);
+    setModuleSpans(compacted.spans);
+  };
+
+  const placeInNextRowSlot = (slots, spans, moduleKey, startIndex) => {
+    let next = ensureRowCapacity(slots, startIndex);
+    let targetIndex = -1;
+
+    for (let i = startIndex; i < next.length; i += 1) {
+      if (isAvailableSlot(next, spans, i)) {
+        targetIndex = i;
+        break;
+      }
+    }
+
+    if (targetIndex === -1) {
+      next = [...next, null, null];
+      targetIndex = next.length - 2;
+    }
+
+    next[targetIndex] = moduleKey;
+    return next;
+  };
   
   const handleDragStart = (e, moduleKey) => {
     setDraggedModule(moduleKey);
@@ -102,21 +270,31 @@ function AppContent() {
     e.preventDefault();
     
     if (draggedModule === null) return;
+    if (isCoveredSlot(layout, moduleSpans, targetQuadrantIndex)) return;
     
     // Find source quadrant
     const sourceQuadrantIndex = layout.indexOf(draggedModule);
+    if (sourceQuadrantIndex === -1) return;
     
     // Create new layout
     const newLayout = [...layout];
-    
-    // Swap modules
+    const nextSpans = { ...moduleSpans };
+
     const targetModule = newLayout[targetQuadrantIndex];
-    newLayout[targetQuadrantIndex] = draggedModule;
-    if (sourceQuadrantIndex !== -1) {
-      newLayout[sourceQuadrantIndex] = targetModule;
+
+    // Collapse spans before swapping to avoid covered-slot conflicts
+    if (nextSpans[draggedModule] === 2) {
+      delete nextSpans[draggedModule];
+    }
+    if (targetModule && nextSpans[targetModule] === 2) {
+      delete nextSpans[targetModule];
     }
     
-    setLayout(newLayout);
+    // Swap modules
+    newLayout[targetQuadrantIndex] = draggedModule;
+    newLayout[sourceQuadrantIndex] = targetModule;
+    
+    applyLayoutState(newLayout, nextSpans);
     setDraggedModule(null);
     setDragOverQuadrant(null);
     setAddMenuIndex(null);
@@ -129,17 +307,91 @@ function AppContent() {
   };
 
   const handleRemoveModule = (quadrantIndex) => {
+    if (isCoveredSlot(layout, moduleSpans, quadrantIndex)) return;
+
     const newLayout = [...layout];
+    const moduleKey = newLayout[quadrantIndex];
     newLayout[quadrantIndex] = null;
-    setLayout(newLayout);
+
+    const nextSpans = { ...moduleSpans };
+    if (moduleKey && nextSpans[moduleKey] === 2) {
+      delete nextSpans[moduleKey];
+    }
+
+    applyLayoutState(newLayout, nextSpans);
     setRemoveConfirmIndex(null);
   };
 
   const handleAddModule = (quadrantIndex, moduleKey) => {
+    if (isCoveredSlot(layout, moduleSpans, quadrantIndex)) return;
+
     const newLayout = [...layout];
     newLayout[quadrantIndex] = moduleKey;
-    setLayout(newLayout);
+    applyLayoutState(newLayout, { ...moduleSpans });
     setAddMenuIndex(null);
+  };
+
+  const handleStretchModule = (index, direction) => {
+    const moduleKey = layout[index];
+    if (!moduleKey) return;
+
+    const newLayout = [...layout];
+    const nextSpans = { ...moduleSpans };
+    const rowStart = index % 2 === 0 ? index : index - 1;
+    const rowEnd = rowStart + 1;
+    const sourceIndex = index;
+    const anchorIndex = rowStart;
+    const coveredIndex = direction === 'left' ? rowStart : rowEnd;
+
+    let displacedModule = null;
+
+    // Move module into the left anchor slot if needed
+    if (sourceIndex !== anchorIndex) {
+      newLayout[sourceIndex] = null;
+    }
+    newLayout[anchorIndex] = moduleKey;
+
+    // Any other module currently in the covered slot gets displaced
+    if (newLayout[coveredIndex] && newLayout[coveredIndex] !== moduleKey) {
+      displacedModule = newLayout[coveredIndex];
+      newLayout[coveredIndex] = null;
+    }
+
+    if (displacedModule && displacedModule !== moduleKey) {
+      if (nextSpans[displacedModule] === 2) {
+        delete nextSpans[displacedModule];
+      }
+      const startSearch = rowStart + 2;
+      const placedLayout = placeInNextRowSlot(newLayout, nextSpans, displacedModule, startSearch);
+      newLayout.length = 0;
+      newLayout.push(...placedLayout);
+    }
+
+    nextSpans[moduleKey] = 2;
+
+    applyLayoutState(newLayout, nextSpans);
+    setAddMenuIndex(null);
+    setRemoveConfirmIndex(null);
+  };
+
+  const handleCollapseModule = (moduleKey) => {
+    if (!moduleSpans[moduleKey]) return;
+    const nextSpans = { ...moduleSpans };
+    delete nextSpans[moduleKey];
+    applyLayoutState([...layout], nextSpans);
+  };
+
+  const handleToggleExpand = (index) => {
+    const moduleKey = layout[index];
+    if (!moduleKey) return;
+
+    if (moduleSpans[moduleKey] === 2) {
+      handleCollapseModule(moduleKey);
+      return;
+    }
+
+    const direction = index % 2 === 0 ? 'right' : 'left';
+    handleStretchModule(index, direction);
   };
 
   const allModuleKeys = MODULES.map((m) => m.key);
@@ -177,8 +429,8 @@ function AppContent() {
       }}
     >
       <header style={{ backgroundColor: theme.bgSecondary, borderBottom: `1px solid ${theme.border}`, borderRadius: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '0 20px', gap: 12 }}>
+          <div style={{ justifySelf: 'start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
               <div style={{ backgroundColor: theme.bgSecondary, padding: '16px', borderRadius: '8px' }}>
                 <svg width="80" height="80" viewBox="0 0 200 200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
@@ -233,10 +485,23 @@ function AppContent() {
                   )}
                 </svg>
               </div>
-              <h1 style={{ margin: 3, marginTop: 8, marginBottom: 12, color: theme.text }}>MMTM</h1>
             </div>
           </div>
-          <div style={{ position: 'relative' }}>
+          <div
+            style={{
+              justifySelf: 'center',
+              fontSize: 25,
+              fontWeight: 600,
+              color: theme.text,
+              letterSpacing: '0.2px',
+              textAlign: 'center',
+              whiteSpace: 'nowrap'
+            }}
+            aria-live="polite"
+          >
+            {formattedDateTime}
+          </div>
+          <div style={{ position: 'relative', justifySelf: 'end' }}>
             <button
               onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
               aria-label="Select theme"
@@ -375,16 +640,22 @@ function AppContent() {
             }
           }}
         >
-          {[0, 1, 2, 3].map((quadrantIndex) => {
+          {layout.map((_, quadrantIndex) => {
+            if (isCoveredSlot(layout, moduleSpans, quadrantIndex)) {
+              return null;
+            }
+
             const moduleKey = layout[quadrantIndex];
             const isDraggingOver = dragOverQuadrant === quadrantIndex;
             const isDragging = draggedModule === moduleKey;
+            const isSpanned = !!moduleKey && moduleSpans[moduleKey] === 2 && quadrantIndex % 2 === 0;
             
             return (
               <div
                 key={quadrantIndex}
                 className="module-card"
                 style={{
+                  gridColumn: isSpanned ? 'span 2' : 'auto',
                   opacity: isDragging ? 0.4 : 1,
                   border: isDraggingOver 
                     ? `2px dashed ${theme.primary}` 
@@ -450,6 +721,29 @@ function AppContent() {
                       aria-label="Remove module"
                     >
                       <span style={{ fontSize: 16, lineHeight: 1 }}>−</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleExpand(quadrantIndex);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 34,
+                        backgroundColor: 'transparent',
+                        color: theme.text,
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        fontFamily: 'inherit',
+                        padding: 0
+                      }}
+                      aria-label={moduleSpans[moduleKey] === 2 ? 'Collapse module' : 'Expand module'}
+                    >
+                      {moduleSpans[moduleKey] === 2 ? 'Collapse' : 'Expand'}
                     </button>
                     {renderModule(moduleKey)}
                     {removeConfirmIndex === quadrantIndex && (

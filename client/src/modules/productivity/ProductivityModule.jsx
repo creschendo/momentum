@@ -1,12 +1,12 @@
 import React from 'react';
 import ModuleContainer from '../../components/ModuleContainer';
-import Tasks from './Tasks';
+import CalendarApp from './CalendarApp';
 
 export default function ProductivityModule() {
   return (
     <div>
-      <ModuleContainer moduleKey="productivity" title="Productivity" description="Tasks, timers, notes, and general productivity tools." />
-      <Tasks />
+      <ModuleContainer moduleKey="productivity" title="Productivity" description="Calendar workspace with daily, weekly, and monthly planning views." />
+      <CalendarApp />
     </div>
   );
 }
