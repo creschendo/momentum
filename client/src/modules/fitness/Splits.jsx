@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import useSplits from './hooks/useSplits';
 import { useTheme } from '../../context/ThemeContext';
 
 const CARDIO_TYPES = ['Treadmill', 'Bike', 'Stairmaster', 'Rowing Machine', 'Elliptical'];
 
 export default function Splits() {
+  // Main workout planner state and CRUD actions come from the split hook.
   const { splits, loading, error, createSplit, updateSplit, deleteSplit, updateDay, addLift, updateLift, deleteLift, addCardio, updateCardio, deleteCardio } = useSplits();
   const { theme } = useTheme();
 
@@ -24,7 +25,7 @@ export default function Splits() {
   
   // Drag state for reordering days
   const [draggedDay, setDraggedDay] = useState(null);
-  const [dragOverDay, setDragOverDay] = useState(null);
+  const [dragOverSplitId, setDragOverSplitId] = useState(null);
   const [reorderedDays, setReorderedDays] = useState({}); // Track day reordering per split
   
   // Edit mode state
@@ -33,8 +34,25 @@ export default function Splits() {
   const [editingSplitId, setEditingSplitId] = useState(null);
   const [editingSplitTitle, setEditingSplitTitle] = useState('');
   const [editingDaysCount, setEditingDaysCount] = useState(1);
+  const [deleteConfirmSplitId, setDeleteConfirmSplitId] = useState(null);
   const [editingDayKey, setEditingDayKey] = useState(null);
   const [editingDayName, setEditingDayName] = useState('');
+  const deleteConfirmRef = useRef(null);
+
+  useEffect(() => {
+    if (!deleteConfirmSplitId) return;
+
+    const handleDocumentMouseDown = (event) => {
+      if (deleteConfirmRef.current && !deleteConfirmRef.current.contains(event.target)) {
+        setDeleteConfirmSplitId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+    };
+  }, [deleteConfirmSplitId]);
 
   const handleCreateSplit = async (e) => {
     e.preventDefault();
@@ -203,7 +221,7 @@ export default function Splits() {
     });
   };
 
-  // Drag and drop handlers for reordering days
+  // Drag and drop handlers keep day order local until a drop is finalized.
   const handleDragStart = (e, day, splitId) => {
     // Hide the default drag image
     const emptyImage = new Image();
@@ -213,9 +231,17 @@ export default function Splits() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, splitId) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    if (dragOverSplitId !== splitId) {
+      setDragOverSplitId(splitId);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedDay(null);
+    setDragOverSplitId(null);
   };
 
   const handleDrop = (e, targetDay, splitId) => {
@@ -227,7 +253,7 @@ export default function Splits() {
 
     if (draggedDayId === targetDayId) {
       setDraggedDay(null);
-      setDragOverDay(null);
+      setDragOverSplitId(null);
       return;
     }
 
@@ -247,11 +273,7 @@ export default function Splits() {
     setReorderedDays({ ...reorderedDays, [splitId]: days });
 
     setDraggedDay(null);
-    setDragOverDay(null);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverDay(null);
+    setDragOverSplitId(null);
   };
 
   if (loading) return <div style={{ color: theme.textMuted }}>Loading splits...</div>;
@@ -302,7 +324,7 @@ export default function Splits() {
             type="submit"
             style={{
               padding: '8px 16px',
-              backgroundColor: '#48bb78',
+              backgroundColor: theme.primary,
               color: 'white',
               border: 'none',
               borderRadius: 6,
@@ -311,8 +333,8 @@ export default function Splits() {
               fontWeight: 500,
               transition: 'background-color 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+            onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+            onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
           >
             Create Split
           </button>
@@ -325,7 +347,9 @@ export default function Splits() {
           <div
             key={split.id}
             style={{
-              border: `1.5px solid ${expandedSplit === split.id ? '#0066FF' : theme.border}`,
+              border: dragOverSplitId === split.id
+                ? `2px dashed ${theme.primary}`
+                : `1.5px solid ${expandedSplit === split.id ? '#0066FF' : theme.border}`,
               borderRadius: 8,
               padding: 16,
               backgroundColor: theme.bgSecondary,
@@ -399,14 +423,14 @@ export default function Splits() {
                   </h3>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, position: 'relative' }}>
                 {editingSplitId === split.id ? (
                   <>
                     <button
                       onClick={() => handleSaveSplit(split.id)}
                       style={{
                         padding: '6px 12px',
-                        backgroundColor: '#48bb78',
+                        backgroundColor: theme.primary,
                         color: 'white',
                         border: 'none',
                         borderRadius: 6,
@@ -446,7 +470,7 @@ export default function Splits() {
                     onClick={() => handleStartEditSplit(split)}
                     style={{
                       padding: '6px 12px',
-                      backgroundColor: '#0066FF',
+                      backgroundColor: theme.primary,
                       color: 'white',
                       border: 'none',
                       borderRadius: 6,
@@ -461,11 +485,7 @@ export default function Splits() {
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to delete "${split.title}"? This will remove all days, lifts, and cardio sessions.`)) {
-                      deleteSplit(split.id);
-                    }
-                  }}
+                  onClick={() => setDeleteConfirmSplitId(split.id)}
                   style={{
                     padding: '6px 12px',
                     backgroundColor: theme.error,
@@ -481,6 +501,63 @@ export default function Splits() {
                 >
                   Delete Split
                 </button>
+
+                {deleteConfirmSplitId === split.id && (
+                  <div
+                    ref={deleteConfirmRef}
+                    style={{
+                      position: 'absolute',
+                      top: 36,
+                      right: 0,
+                      backgroundColor: theme.bg,
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 8,
+                      padding: 10,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                      zIndex: 2,
+                      minWidth: 220
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 8 }}>
+                      Delete split &quot;{split.name}&quot;?
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmSplitId(null)}
+                        style={{
+                          padding: '6px 8px',
+                          backgroundColor: theme.bgTertiary,
+                          color: theme.text,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deleteSplit(split.id);
+                          setDeleteConfirmSplitId(null);
+                        }}
+                        style={{
+                          padding: '6px 8px',
+                          backgroundColor: theme.error,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -495,15 +572,15 @@ export default function Splits() {
                       key={day.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, day, split.id)}
-                      onDragOver={handleDragOver}
+                      onDragOver={(e) => handleDragOver(e, split.id)}
                       onDrop={(e) => handleDrop(e, day, split.id)}
-                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
                       style={{
-                        border: `1px solid ${expandedDay === day.id ? '#0066FF' : dragOverDay?.id === day.id ? '#48bb78' : theme.border}`,
+                        border: `1px solid ${expandedDay === day.id ? '#0066FF' : theme.border}`,
                         borderRadius: 6,
                         padding: 12,
-                        backgroundColor: dragOverDay?.id === day.id ? theme.bgSecondary : theme.bg,
-                        transition: 'border-color 0.15s, background-color 0.15s, opacity 0.15s',
+                        backgroundColor: theme.bg,
+                        transition: 'border-color 0.15s, opacity 0.15s',
                         opacity: draggedDay?.day.id === day.id ? 0.5 : 1
                       }}
                     >
@@ -561,7 +638,7 @@ export default function Splits() {
                                 onClick={() => handleSaveDay(split.id, day.id)}
                                 style={{
                                   padding: '4px 8px',
-                                  backgroundColor: '#48bb78',
+                                  backgroundColor: theme.primary,
                                   color: 'white',
                                   border: 'none',
                                   borderRadius: 4,
@@ -600,7 +677,7 @@ export default function Splits() {
                               onClick={() => handleStartEditDay(day)}
                               style={{
                                 padding: '4px 8px',
-                                backgroundColor: '#0066FF',
+                                backgroundColor: theme.primary,
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 4,
@@ -731,7 +808,7 @@ export default function Splits() {
                                               style={{
                                                 flex: 1,
                                                 padding: '6px 12px',
-                                                backgroundColor: '#48bb78',
+                                                backgroundColor: theme.primary,
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: 4,
@@ -739,8 +816,8 @@ export default function Splits() {
                                                 fontSize: 12,
                                                 transition: 'background-color 0.2s'
                                               }}
-                                              onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                                              onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                                              onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                                              onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                                             >
                                               Save
                                             </button>
@@ -795,7 +872,7 @@ export default function Splits() {
                                             }}
                                             style={{
                                               padding: '4px 10px',
-                                              backgroundColor: '#0066FF',
+                                              backgroundColor: theme.primary,
                                               color: 'white',
                                               border: 'none',
                                               borderRadius: 4,
@@ -845,7 +922,7 @@ export default function Splits() {
                               }}
                               style={{
                                 padding: '8px 16px',
-                                backgroundColor: '#48bb78',
+                                backgroundColor: theme.primary,
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 4,
@@ -854,8 +931,8 @@ export default function Splits() {
                                 fontWeight: 500,
                                 transition: 'background-color 0.2s'
                               }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                             >
                               {activeOperation === `add-lift-${split.id}-${day.id}` ? 'Cancel' : '+ Add Lift'}
                             </button>
@@ -934,7 +1011,7 @@ export default function Splits() {
                                   type="submit"
                                   style={{
                                     padding: '6px 12px',
-                                    backgroundColor: '#48bb78',
+                                    backgroundColor: theme.primary,
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: 4,
@@ -942,8 +1019,8 @@ export default function Splits() {
                                     fontSize: 13,
                                     transition: 'background-color 0.2s'
                                   }}
-                                  onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                                  onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                                  onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                                  onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                                 >
                                   Add Lift
                                 </button>
@@ -1038,7 +1115,7 @@ export default function Splits() {
                                               style={{
                                                 flex: 1,
                                                 padding: '6px 12px',
-                                                backgroundColor: '#48bb78',
+                                                backgroundColor: theme.primary,
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: 4,
@@ -1046,8 +1123,8 @@ export default function Splits() {
                                                 fontSize: 12,
                                                 transition: 'background-color 0.2s'
                                               }}
-                                              onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                                              onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                                              onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                                              onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                                             >
                                               Save
                                             </button>
@@ -1099,7 +1176,7 @@ export default function Splits() {
                                             onClick={() => { setActiveOperation(`edit-cardio-${cardio.id}`); setEditingCardio({ ...cardio }); }}
                                             style={{
                                               padding: '4px 10px',
-                                              backgroundColor: '#0066FF',
+                                              backgroundColor: theme.primary,
                                               color: 'white',
                                               border: 'none',
                                               borderRadius: 4,
@@ -1149,7 +1226,7 @@ export default function Splits() {
                               }}
                               style={{
                                 padding: '8px 16px',
-                                backgroundColor: '#48bb78',
+                                backgroundColor: theme.primary,
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 4,
@@ -1158,8 +1235,8 @@ export default function Splits() {
                                 fontWeight: 500,
                                 transition: 'background-color 0.2s'
                               }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                             >
                               {activeOperation === `add-cardio-${split.id}-${day.id}` ? 'Cancel' : '+ Add Cardio'}
                             </button>
@@ -1226,7 +1303,7 @@ export default function Splits() {
                                   type="submit"
                                   style={{
                                     padding: '6px 12px',
-                                    backgroundColor: '#48bb78',
+                                    backgroundColor: theme.primary,
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: 4,
@@ -1234,8 +1311,8 @@ export default function Splits() {
                                     fontSize: 13,
                                     transition: 'background-color 0.2s'
                                   }}
-                                  onMouseEnter={(e) => e.target.style.backgroundColor = '#38a169'}
-                                  onMouseLeave={(e) => e.target.style.backgroundColor = '#48bb78'}
+                                  onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
+                                  onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
                                 >
                                   Add Cardio
                                 </button>

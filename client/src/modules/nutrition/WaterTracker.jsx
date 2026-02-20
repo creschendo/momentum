@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 export default function WaterTracker() {
   const { theme, isDark } = useTheme();
+  // Hook manages water entries, totals, and reset actions.
   const { entries, summary, loading, error, addEntry, fetchAll, refreshSummary, resetEntries } = useWater();
   const [value, setValue] = useState(250);
   const [goalMl, setGoalMl] = useState(2000);
@@ -17,6 +18,7 @@ export default function WaterTracker() {
     return Math.min(totalMl / Number(goalMl), 1);
   }, [goalMl, totalMl]);
 
+  // Precompute circular progress geometry for the hydration ring.
   const ring = useMemo(() => {
     const size = 120;
     const stroke = 10;
@@ -26,6 +28,7 @@ export default function WaterTracker() {
     return { size, stroke, radius, circumference, offset };
   }, [progress]);
 
+  // Logs water intake and briefly spawns a droplet animation.
   async function onAdd(e) {
     e.preventDefault();
     try {
@@ -113,7 +116,7 @@ export default function WaterTracker() {
           style={{
             flexShrink: 0,
             padding: '8px 20px',
-            backgroundColor: '#3182ce',
+            backgroundColor: theme.primary,
             color: 'white',
             border: 'none',
             borderRadius: 6,
@@ -122,8 +125,8 @@ export default function WaterTracker() {
             cursor: 'pointer',
             transition: 'background 200ms'
           }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
         >
           Log Water
         </button>

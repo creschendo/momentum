@@ -57,6 +57,69 @@ router.delete('/water/reset', async (req, res) => {
   }
 });
 
+// POST /api/nutrition/weight
+// body: { weightKg: number, entryDate?: YYYY-MM-DD, note?: string }
+router.post('/weight', async (req, res) => {
+  try {
+    const { weightKg, entryDate, note } = req.body || {};
+    if (!weightKg || isNaN(weightKg) || Number(weightKg) <= 0) {
+      return res.status(400).json({ error: 'weightKg must be a positive number' });
+    }
+
+    const created = await service.upsertWeightEntry({
+      userId: req.user.id,
+      weightKg: Number(weightKg),
+      entryDate,
+      note
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /api/nutrition/weight/entries?limit=90
+router.get('/weight/entries', async (req, res) => {
+  try {
+    const { limit } = req.query;
+    const entries = await service.getWeightEntries({
+      userId: req.user.id,
+      limit: limit ? Number(limit) : 90
+    });
+    res.json(entries);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /api/nutrition/weight/trend?days=30
+router.get('/weight/trend', async (req, res) => {
+  try {
+    const { days } = req.query;
+    const trend = await service.getWeightTrend({
+      userId: req.user.id,
+      days: days ? Number(days) : 30
+    });
+    res.json(trend);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// DELETE /api/nutrition/weight/:id
+router.delete('/weight/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await service.deleteWeightEntry({ userId: req.user.id, id });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Weight entry not found' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // POST /api/nutrition/search?q=chicken
 router.get('/search', async (req, res) => {
   const { q } = req.query;

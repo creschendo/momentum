@@ -3,11 +3,14 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import authRouter from './modules/auth/index.js';
 import nutritionRouter from './modules/nutrition/index.js';
 import fitnessRouter from './modules/fitness/index.js';
 import productivityRouter from './modules/productivity/index.js';
+import { requireAuth } from './modules/auth/middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +18,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 
 app.get('/api/hello', (req, res) => {
@@ -23,9 +27,10 @@ app.get('/api/hello', (req, res) => {
 });
 
 // Module routes (modular architecture)
-app.use('/api/nutrition', nutritionRouter);
-app.use('/api/fitness', fitnessRouter);
-app.use('/api/productivity', productivityRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/nutrition', requireAuth, nutritionRouter);
+app.use('/api/fitness', requireAuth, fitnessRouter);
+app.use('/api/productivity', requireAuth, productivityRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

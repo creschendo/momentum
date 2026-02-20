@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './index.css';
 import ModuleCard from './components/ModuleCard';
 import ModuleContainer from './components/ModuleContainer';
+import AuthScreen from './components/AuthScreen';
+import DashboardSummary from './components/DashboardSummary';
 import nutrition from './modules/nutrition';
 import fitness from './modules/fitness';
 import productivity from './modules/productivity';
@@ -11,6 +13,7 @@ import FitnessModule from './modules/fitness/FitnessModule';
 import ProductivityModule from './modules/productivity/ProductivityModule';
 import PomodoroModule from './modules/pomodoro/PomodoroModule';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 const MODULES = [nutrition, productivity, fitness, pomodoro];
 
@@ -61,6 +64,7 @@ function getThemeIcon(themeName, color) {
 
 function AppContent() {
   const { theme, currentTheme, isDark, setTheme } = useTheme();
+  const { user, loading, logout } = useAuth();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   const getOrdinalSuffix = (day) => {
@@ -87,6 +91,7 @@ function AppContent() {
     return `${weekday}, ${month} ${day}${getOrdinalSuffix(day)}, ${time}`;
   })();
   
+  // Ensures the dashboard grid always has valid row/slot structure.
   const normalizeLayout = (value) => {
     if (!Array.isArray(value) || value.length === 0) {
       return ['nutrition', 'productivity', 'fitness', null];
@@ -165,22 +170,23 @@ function AppContent() {
     return next;
   };
 
+  // Compacts modules after add/remove/drag while preserving span rules.
   const compactLayoutState = (slots, spans) => {
     const normalized = normalizeLayout(slots);
     const modulesInOrder = [];
-    const seen = new Set();
 
     for (let i = 0; i < normalized.length; i += 1) {
       if (isCoveredSlot(normalized, spans, i)) continue;
       const moduleKey = normalized[i];
-      if (moduleKey && !seen.has(moduleKey)) {
-        seen.add(moduleKey);
+      if (moduleKey) {
         modulesInOrder.push(moduleKey);
       }
     }
 
+    const presentModuleKeys = new Set(modulesInOrder);
+
     const sanitizedSpans = Object.fromEntries(
-      Object.entries(spans).filter(([key, value]) => seen.has(key) && value === 2)
+      Object.entries(spans).filter(([key, value]) => presentModuleKeys.has(key) && value === 2)
     );
 
     let compacted = Array.from({ length: Math.max(4, normalized.length) }, () => null);
@@ -197,7 +203,7 @@ function AppContent() {
       }
 
       for (let i = 0; i < compacted.length; i += 1) {
-        if (compacted[i] === null) return i;
+        if (isAvailableSlot(compacted, sanitizedSpans, i)) return i;
       }
 
       compacted = [...compacted, null, null];
@@ -231,32 +237,33 @@ function AppContent() {
     setModuleSpans(compacted.spans);
   };
 
-  const placeInNextRowSlot = (slots, spans, moduleKey, startIndex) => {
-    let next = ensureRowCapacity(slots, startIndex);
-    let targetIndex = -1;
+  const insertModuleAtIndex = (slots, moduleKey, insertIndex) => {
+    let next = [...slots];
+    let emptyIndex = next.indexOf(null, insertIndex);
 
-    for (let i = startIndex; i < next.length; i += 1) {
-      if (isAvailableSlot(next, spans, i)) {
-        targetIndex = i;
-        break;
-      }
-    }
-
-    if (targetIndex === -1) {
+    while (emptyIndex === -1) {
       next = [...next, null, null];
-      targetIndex = next.length - 2;
+      emptyIndex = next.length - 2;
     }
 
-    next[targetIndex] = moduleKey;
+    for (let i = emptyIndex; i > insertIndex; i -= 1) {
+      next[i] = next[i - 1];
+    }
+
+    next[insertIndex] = moduleKey;
     return next;
   };
   
   const handleDragStart = (e, moduleKey) => {
+    if (e.target !== e.currentTarget && e.target.draggable) {
+      return;
+    }
     setDraggedModule(moduleKey);
     e.dataTransfer.effectAllowed = 'move';
   };
   
   const handleDragOver = (e, quadrantIndex) => {
+    if (draggedModule === null) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverQuadrant(quadrantIndex);
@@ -266,6 +273,7 @@ function AppContent() {
     setDragOverQuadrant(null);
   };
   
+  // Swaps source/target modules and reapplies normalized layout state.
   const handleDrop = (e, targetQuadrantIndex) => {
     e.preventDefault();
     
@@ -331,43 +339,32 @@ function AppContent() {
     setAddMenuIndex(null);
   };
 
-  const handleStretchModule = (index, direction) => {
+  const handleStretchModule = (index) => {
     const moduleKey = layout[index];
     if (!moduleKey) return;
 
-    const newLayout = [...layout];
-    const nextSpans = { ...moduleSpans };
+    let newLayout = normalizeLayout(layout);
     const rowStart = index % 2 === 0 ? index : index - 1;
     const rowEnd = rowStart + 1;
-    const sourceIndex = index;
-    const anchorIndex = rowStart;
-    const coveredIndex = direction === 'left' ? rowStart : rowEnd;
+    const displacedModules = [];
 
-    let displacedModule = null;
+    newLayout[index] = null;
 
-    // Move module into the left anchor slot if needed
-    if (sourceIndex !== anchorIndex) {
-      newLayout[sourceIndex] = null;
-    }
-    newLayout[anchorIndex] = moduleKey;
-
-    // Any other module currently in the covered slot gets displaced
-    if (newLayout[coveredIndex] && newLayout[coveredIndex] !== moduleKey) {
-      displacedModule = newLayout[coveredIndex];
-      newLayout[coveredIndex] = null;
-    }
-
-    if (displacedModule && displacedModule !== moduleKey) {
-      if (nextSpans[displacedModule] === 2) {
-        delete nextSpans[displacedModule];
+    [rowStart, rowEnd].forEach((slotIndex) => {
+      const occupyingModule = newLayout[slotIndex];
+      if (occupyingModule && occupyingModule !== moduleKey) {
+        displacedModules.push(occupyingModule);
       }
-      const startSearch = rowStart + 2;
-      const placedLayout = placeInNextRowSlot(newLayout, nextSpans, displacedModule, startSearch);
-      newLayout.length = 0;
-      newLayout.push(...placedLayout);
-    }
+      newLayout[slotIndex] = null;
+    });
 
-    nextSpans[moduleKey] = 2;
+    newLayout[rowStart] = moduleKey;
+
+    displacedModules.forEach((displacedModule, offset) => {
+      newLayout = insertModuleAtIndex(newLayout, displacedModule, rowEnd + 1 + offset);
+    });
+
+    const nextSpans = { [moduleKey]: 2 };
 
     applyLayoutState(newLayout, nextSpans);
     setAddMenuIndex(null);
@@ -390,8 +387,7 @@ function AppContent() {
       return;
     }
 
-    const direction = index % 2 === 0 ? 'right' : 'left';
-    handleStretchModule(index, direction);
+    handleStretchModule(index);
   };
 
   const allModuleKeys = MODULES.map((m) => m.key);
@@ -415,6 +411,18 @@ function AppContent() {
     }
     return null;
   };
+
+  if (loading) {
+    return (
+      <div className="app-root" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg, color: theme.text }}>
+        Loading session...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   return (
     <div 
@@ -490,7 +498,7 @@ function AppContent() {
           <div
             style={{
               justifySelf: 'center',
-              fontSize: 25,
+              fontSize: 30,
               fontWeight: 600,
               color: theme.text,
               letterSpacing: '0.2px',
@@ -501,7 +509,22 @@ function AppContent() {
           >
             {formattedDateTime}
           </div>
-          <div style={{ position: 'relative', justifySelf: 'end' }}>
+          <div style={{ position: 'relative', justifySelf: 'end', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={logout}
+              style={{
+                padding: '10px 12px',
+                backgroundColor: theme.bgTertiary,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
             <button
               onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
               aria-label="Select theme"
@@ -631,7 +654,10 @@ function AppContent() {
         </div>
       </header>
 
-      <main>
+      <main style={{ marginTop: 32 }}>
+        <div style={{ marginBottom: 32 }}>
+          <DashboardSummary />
+        </div>
         <div
           className="module-grid"
           onClick={() => {
@@ -646,13 +672,13 @@ function AppContent() {
             }
 
             const moduleKey = layout[quadrantIndex];
-            const isDraggingOver = dragOverQuadrant === quadrantIndex;
+            const isDraggingOver = draggedModule !== null && dragOverQuadrant === quadrantIndex;
             const isDragging = draggedModule === moduleKey;
             const isSpanned = !!moduleKey && moduleSpans[moduleKey] === 2 && quadrantIndex % 2 === 0;
             
             return (
               <div
-                key={quadrantIndex}
+                key={moduleKey ? `module-${moduleKey}-${quadrantIndex}` : `empty-${quadrantIndex}`}
                 className="module-card"
                 style={{
                   gridColumn: isSpanned ? 'span 2' : 'auto',
@@ -679,23 +705,6 @@ function AppContent() {
               >
                 {moduleKey ? (
                   <>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 10,
-                        left: 10,
-                        width: 12,
-                        height: 18,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        cursor: 'grab'
-                      }}
-                      aria-hidden="true"
-                    >
-                      <span style={{ fontSize: 18, lineHeight: 1 }}>⋮⋮</span>
-                    </div>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -731,19 +740,23 @@ function AppContent() {
                       style={{
                         position: 'absolute',
                         top: 8,
-                        right: 34,
+                        left: 10,
                         backgroundColor: 'transparent',
                         color: theme.text,
                         border: 'none',
                         cursor: 'pointer',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        fontFamily: 'inherit',
-                        padding: 0
+                        fontSize: 16,
+                        lineHeight: 1,
+                        width: 20,
+                        height: 20,
+                        padding: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}
-                      aria-label={moduleSpans[moduleKey] === 2 ? 'Collapse module' : 'Expand module'}
+                      aria-label={moduleSpans[moduleKey] === 2 ? 'Compress module' : 'Expand module'}
                     >
-                      {moduleSpans[moduleKey] === 2 ? 'Collapse' : 'Expand'}
+                      {moduleSpans[moduleKey] === 2 ? '⤡' : '⤢'}
                     </button>
                     {renderModule(moduleKey)}
                     {removeConfirmIndex === quadrantIndex && (
@@ -916,7 +929,9 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

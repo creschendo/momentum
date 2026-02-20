@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import * as fitnessApi from '../../../api/fitness';
 
 export default function useSplits() {
+  // Centralized split state used by the Splits planner UI.
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Initial load and refresh path for all split data.
   const fetchSplits = async () => {
     setLoading(true);
     setError(null);
@@ -100,6 +102,7 @@ export default function useSplits() {
     }
   };
 
+  // Nested helpers below update deep split/day/lift/cardio structures in-place.
   const addLift = async (splitId, dayId, lift) => {
     try {
       console.log('Adding lift:', { splitId, dayId, lift });
