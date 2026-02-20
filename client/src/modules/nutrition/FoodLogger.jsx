@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import useFoods from './hooks/useFoods';
 import { useTheme } from '../../context/ThemeContext';
+import { useCalorieGoal } from './context/CalorieGoalContext';
 
 export default function FoodLogger() {
   const { theme, isDark } = useTheme();
+  const { calorieGoal } = useCalorieGoal();
+  // Hook centralizes search, staged meal editing, persistence, and summaries.
   const { 
     searchResults, 
     meals,
@@ -31,6 +34,40 @@ export default function FoodLogger() {
   const [servingSize, setServingSize] = useState('100');
   const [editingFoodIndex, setEditingFoodIndex] = useState(null);
   const [editingPortionValue, setEditingPortionValue] = useState('');
+  const [deleteConfirmMealId, setDeleteConfirmMealId] = useState(null);
+
+  // Progress ring component
+  const ProgressRing = ({ value, max, color, size = 80 }) => {
+    const radius = (size - 8) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const percent = Math.min(value / max, 1);
+    const strokeDashoffset = circumference - (percent * circumference);
+    
+    return (
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={isDark ? theme.border : '#e2e8f0'}
+          strokeWidth="3"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 500ms ease' }}
+        />
+      </svg>
+    );
+  };
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -44,12 +81,14 @@ export default function FoodLogger() {
     setServingSize(String(food.serving_weight_grams || 100));
   }
 
+  // Normalizes user-entered serving size before macro calculations.
   function getServingSizeNumber() {
     const parsed = Number(servingSize);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
     return selectedFood?.serving_weight_grams || 100;
   }
 
+  // Converts selected food to scaled macros and adds it to the staged meal.
   async function handleAddFood(e) {
     e.preventDefault();
     if (!selectedFood) return;
@@ -83,7 +122,10 @@ export default function FoodLogger() {
 
   return (
     <div style={{ marginTop: 0, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
-      <h3 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>Food & Macros</h3>
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: theme.text }}>Food & Macros</h3>
+        
+      </div>
 
       {/* Search Form */}
       <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
@@ -107,7 +149,7 @@ export default function FoodLogger() {
           type="submit"
           style={{
             padding: '10px 20px',
-            backgroundColor: '#3182ce',
+            backgroundColor: theme.primary,
             color: 'white',
             border: 'none',
             borderRadius: 6,
@@ -116,8 +158,8 @@ export default function FoodLogger() {
             cursor: 'pointer',
             transition: 'background 200ms'
           }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
         >
           Search
         </button>
@@ -220,7 +262,7 @@ export default function FoodLogger() {
                 style={{
                   flex: 1,
                   padding: '10px 16px',
-                  backgroundColor: '#3182ce',
+                  backgroundColor: theme.primary,
                   color: 'white',
                   border: 'none',
                   borderRadius: 6,
@@ -229,8 +271,8 @@ export default function FoodLogger() {
                   cursor: 'pointer',
                   transition: 'background 200ms'
                 }}
-                onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
-                onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
               >
                 Add to Current Meal
               </button>
@@ -332,7 +374,7 @@ export default function FoodLogger() {
                         style={{
                           marginLeft: 'auto',
                           padding: '6px 12px',
-                          backgroundColor: '#48bb78',
+                          backgroundColor: theme.primary,
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -365,7 +407,7 @@ export default function FoodLogger() {
                         }}
                         style={{
                           padding: '6px 12px',
-                          backgroundColor: '#3182ce',
+                          backgroundColor: theme.primary,
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -374,8 +416,8 @@ export default function FoodLogger() {
                           cursor: 'pointer',
                           transition: 'background 200ms'
                         }}
-                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
-                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
                       >
                         Edit
                       </button>
@@ -383,7 +425,7 @@ export default function FoodLogger() {
                         onClick={() => removeFoodFromCurrentMeal(idx)}
                         style={{
                           padding: '6px 12px',
-                          backgroundColor: '#fc8181',
+                          backgroundColor: theme.error,
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -392,8 +434,8 @@ export default function FoodLogger() {
                           cursor: 'pointer',
                           transition: 'background 200ms'
                         }}
-                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#f56565')}
-                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#fc8181')}
+                        onMouseEnter={(e) => (e.target.style.opacity = '0.9')}
+                        onMouseLeave={(e) => (e.target.style.opacity = '1')}
                       >
                         Remove
                       </button>
@@ -434,7 +476,7 @@ export default function FoodLogger() {
                 style={{
                   flex: 1,
                   padding: '10px 16px',
-                  backgroundColor: mealName.trim() ? '#48bb78' : '#cbd5e0',
+                  backgroundColor: mealName.trim() ? theme.primary : theme.border,
                   color: 'white',
                   border: 'none',
                   borderRadius: 6,
@@ -444,10 +486,10 @@ export default function FoodLogger() {
                   transition: 'background 200ms'
                 }}
                 onMouseEnter={(e) => {
-                  if (mealName.trim()) e.target.style.backgroundColor = '#38a169';
+                  if (mealName.trim()) e.target.style.backgroundColor = theme.primaryDark;
                 }}
                 onMouseLeave={(e) => {
-                  if (mealName.trim()) e.target.style.backgroundColor = '#48bb78';
+                  if (mealName.trim()) e.target.style.backgroundColor = theme.primary;
                 }}
               >
                 {editingMealId ? 'Update Meal' : 'Save Meal'}
@@ -518,12 +560,12 @@ export default function FoodLogger() {
                         {meal.foods.length} item{meal.foods.length !== 1 ? 's' : ''}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ position: 'relative', display: 'flex', gap: 6 }}>
                       <button
                         onClick={() => startEditingMeal(meal)}
                         style={{
                           padding: '6px 12px',
-                          backgroundColor: '#3182ce',
+                          backgroundColor: theme.primary,
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -532,16 +574,16 @@ export default function FoodLogger() {
                           cursor: 'pointer',
                           transition: 'background 200ms'
                         }}
-                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#2563a8')}
-                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#3182ce')}
+                        onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+                        onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => deleteMealEntry(meal.id)}
+                        onClick={() => setDeleteConfirmMealId(meal.id)}
                         style={{
                           padding: '6px 12px',
-                          backgroundColor: '#fc8181',
+                          backgroundColor: theme.error,
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -550,11 +592,67 @@ export default function FoodLogger() {
                           cursor: 'pointer',
                           transition: 'background 200ms'
                         }}
-                        onMouseEnter={(e) => (e.target.style.backgroundColor = '#f56565')}
-                        onMouseLeave={(e) => (e.target.style.backgroundColor = '#fc8181')}
+                        onMouseEnter={(e) => (e.target.style.opacity = '0.9')}
+                        onMouseLeave={(e) => (e.target.style.opacity = '1')}
                       >
                         Delete
                       </button>
+
+                      {deleteConfirmMealId === meal.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 36,
+                            right: 0,
+                            backgroundColor: theme.bg,
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: 8,
+                            padding: 10,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                            zIndex: 2,
+                            minWidth: 170
+                          }}
+                        >
+                          <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>
+                            Delete this meal?
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirmMealId(null)}
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: theme.bgTertiary,
+                                color: theme.text,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: 6,
+                                fontSize: 12,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                deleteMealEntry(meal.id);
+                                setDeleteConfirmMealId(null);
+                              }}
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: theme.error,
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -584,8 +682,8 @@ export default function FoodLogger() {
       )}
 
       {/* Macro Summary */}
-      <div style={{ padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 6, border: isDark ? `1px solid ${theme.border}` : '1px solid #cbd5e0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ marginTop: 16, padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 6, border: isDark ? `1px solid ${theme.border}` : '1px solid #cbd5e0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
           <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? theme.textMuted : '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Macro Summary</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
@@ -637,31 +735,100 @@ export default function FoodLogger() {
         {loading ? (
           <div style={{ fontSize: 14, color: isDark ? theme.textMuted : '#718096' }}>Loading...</div>
         ) : summary ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4 }}>CALORIES</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                {period === 'daily' ? summary.totalCalories || 0 : summary.avgCalories || 0}
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
+                  <ProgressRing 
+                    value={period === 'daily' ? summary.totalCalories || 0 : summary.avgCalories || 0} 
+                    max={calorieGoal?.goalValue || 2000} 
+                    color="#f56565"
+                    size={80}
+                  />
+                  <div style={{ position: 'absolute', textAlign: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
+                      {period === 'daily' ? summary.totalCalories || 0 : Math.round(summary.avgCalories || 0)}
+                    </div>
+                    <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>kcal</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calories</div>
+                  <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
+                    {period === 'daily' ? summary.totalCalories || 0 : Math.round(summary.avgCalories || 0)} / {calorieGoal?.goalValue || 2000} kcal
+                  </div>
+                </div>
+              </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
+                <ProgressRing 
+                  value={period === 'daily' ? summary.totalProtein || 0 : summary.avgProtein || 0} 
+                  max={150} 
+                  color="#48bb78"
+                  size={80}
+                />
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
+                    {period === 'daily' ? summary.totalProtein || 0 : Math.round(summary.avgProtein || 0)}
+                  </div>
+                  <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Protein</div>
+                <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
+                  {period === 'daily' ? summary.totalProtein || 0 : Math.round(summary.avgProtein || 0)} / 150 g
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4 }}>PROTEIN</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                {period === 'daily' ? summary.totalProtein || 0 : summary.avgProtein || 0}<span style={{ fontSize: 14 }}>g</span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
+                <ProgressRing 
+                  value={period === 'daily' ? summary.totalCarbs || 0 : summary.avgCarbs || 0} 
+                  max={250} 
+                  color="#4299e1"
+                  size={80}
+                />
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
+                    {period === 'daily' ? summary.totalCarbs || 0 : Math.round(summary.avgCarbs || 0)}
+                  </div>
+                  <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Carbs</div>
+                <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
+                  {period === 'daily' ? summary.totalCarbs || 0 : Math.round(summary.avgCarbs || 0)} / 250 g
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4 }}>CARBS</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                {period === 'daily' ? summary.totalCarbs || 0 : summary.avgCarbs || 0}<span style={{ fontSize: 14 }}>g</span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
+                <ProgressRing 
+                  value={period === 'daily' ? summary.totalFat || 0 : summary.avgFat || 0} 
+                  max={65} 
+                  color="#ed8936"
+                  size={80}
+                />
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
+                    {period === 'daily' ? summary.totalFat || 0 : Math.round(summary.avgFat || 0)}
+                  </div>
+                  <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fat</div>
+                <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
+                  {period === 'daily' ? summary.totalFat || 0 : Math.round(summary.avgFat || 0)} / 65 g
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4 }}>FAT</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                {period === 'daily' ? summary.totalFat || 0 : summary.avgFat || 0}<span style={{ fontSize: 14 }}>g</span>
-              </div>
-            </div>
+          </div>
           </div>
         ) : (
           <div style={{ fontSize: 14, color: isDark ? theme.textMuted : '#718096' }}>No data available</div>

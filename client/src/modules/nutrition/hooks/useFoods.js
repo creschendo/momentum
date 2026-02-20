@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { searchFoods, postMeal, getFoodSummary, getMeals, updateMeal, deleteMeal } from '../../../api/nutrition';
 
 export default function useFoods() {
+  // This hook owns search results, staged meal editing, saved meals, and summaries.
   const [searchResults, setSearchResults] = useState(null);
   const [meals, setMeals] = useState([]);
   const [currentMeal, setCurrentMeal] = useState([]);  // Foods being staged for current meal
@@ -35,6 +36,7 @@ export default function useFoods() {
     setError(null);
     try {
       const s = await getFoodSummary(selectedPeriod);
+      console.log('Summary fetched:', s);
       setSummary(s);
     } catch (err) {
       setError(err.message);
@@ -56,6 +58,7 @@ export default function useFoods() {
     }
   }, []);
 
+  // Keeps meals and nutrition summary in sync after writes.
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -101,6 +104,7 @@ export default function useFoods() {
     setCurrentMeal([...meal.foods]);
   }, []);
 
+  // Saves a new meal or updates the currently edited one.
   const saveMeal = useCallback(async (name) => {
     if (!name || currentMeal.length === 0) {
       setError('Meal name and at least one food item required');

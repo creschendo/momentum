@@ -93,6 +93,7 @@ export default function CalendarApp() {
   const { theme } = useTheme();
   const containerRef = useRef(null);
 
+  // Calendar view state and anchor date drive day/week/month rendering windows.
   const [view, setView] = useState('week');
   const [anchorDate, setAnchorDate] = useState(startOfDay(new Date()));
 
@@ -179,6 +180,7 @@ export default function CalendarApp() {
     });
   };
 
+  // Adds a new event into local in-memory state for the selected date/time.
   const handleAddEvent = (e) => {
     e.preventDefault();
 
@@ -270,6 +272,7 @@ export default function CalendarApp() {
     setDeleteConfirmEventId(null);
   };
 
+  // Shared edit/delete popover used by event cards in all views.
   const renderEventActionPopover = (eventItem, compact = false) => {
     if (selectedEventId !== eventItem.id) return null;
     const isEditing = editingEventId === eventItem.id;

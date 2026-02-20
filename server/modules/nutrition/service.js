@@ -54,9 +54,77 @@ async function resetWaterEntries() {
   return { message: 'Water entries reset', count: result.rowCount };
 }
 
+// Body weight functions
+async function upsertWeightEntry({ userId, weightKg, entryDate, note }) {
+  const normalizedDate = entryDate || new Date().toISOString().slice(0, 10);
+  const result = await pool.query(
+    `INSERT INTO weight_entries (user_id, weight_kg, entry_date, note, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, NOW(), NOW())
+     ON CONFLICT (user_id, entry_date)
+     DO UPDATE SET
+       weight_kg = EXCLUDED.weight_kg,
+       note = EXCLUDED.note,
+       updated_at = NOW()
+     RETURNING id, user_id as "userId", weight_kg::float as "weightKg", entry_date::text as "entryDate", note, created_at as "createdAt", updated_at as "updatedAt"`,
+    [userId, weightKg, normalizedDate, note ? String(note).slice(0, 255) : null]
+  );
+  return result.rows[0];
+}
+
+async function getWeightEntries({ userId, limit = 90 }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(365, Number(limit))) : 90;
+  const result = await pool.query(
+    `SELECT id, user_id as "userId", weight_kg::float as "weightKg", entry_date::text as "entryDate", note, created_at as "createdAt", updated_at as "updatedAt"
+     FROM weight_entries
+     WHERE user_id = $1
+     ORDER BY entry_date DESC
+     LIMIT $2`,
+    [userId, safeLimit]
+  );
+  return result.rows;
+}
+
+async function getWeightTrend({ userId, days = 30 }) {
+  const safeDays = Number.isFinite(days) ? Math.max(7, Math.min(365, Number(days))) : 30;
+  const result = await pool.query(
+    `SELECT id, weight_kg::float as "weightKg", entry_date::text as "entryDate", note
+     FROM weight_entries
+     WHERE user_id = $1
+       AND entry_date >= (CURRENT_DATE - ($2::int || ' days')::interval)
+     ORDER BY entry_date ASC`,
+    [userId, safeDays]
+  );
+
+  const points = result.rows;
+  const latest = points.length > 0 ? points[points.length - 1] : null;
+  const first = points.length > 0 ? points[0] : null;
+  const changeKg = latest && first ? Number((latest.weightKg - first.weightKg).toFixed(2)) : 0;
+
+  return {
+    days: safeDays,
+    points,
+    stats: {
+      count: points.length,
+      latestKg: latest ? latest.weightKg : null,
+      startKg: first ? first.weightKg : null,
+      changeKg
+    }
+  };
+}
+
+async function deleteWeightEntry({ userId, id }) {
+  const result = await pool.query(
+    'DELETE FROM weight_entries WHERE user_id = $1 AND id = $2 RETURNING id',
+    [userId, id]
+  );
+  return result.rowCount > 0;
+}
+
 // Meal functions
 async function addMeal({ name, foods, timestamp }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
+  
+  console.log('addMeal called:', { name, foods, timestamp: ts });
   
   // Insert meal and get ID
   const mealResult = await pool.query(
@@ -69,6 +137,7 @@ async function addMeal({ name, foods, timestamp }) {
   // Insert foods for this meal
   if (foods && Array.isArray(foods)) {
     for (const food of foods) {
+      console.log('Inserting food:', food, 'for meal_id:', mealId);
       await pool.query(
         'INSERT INTO meal_foods (meal_id, food_name, calories, protein, carbs, fat) VALUES ($1, $2, $3, $4, $5, $6)',
         [mealId, food.foodName, food.calories, food.protein, food.carbs, food.fat]
@@ -221,6 +290,7 @@ async function getMacroSummary(period = 'daily') {
   );
 
   const totals = result.rows[0];
+  console.log('getMacroSummary - period:', period, 'start:', start, 'totals:', totals);
 
   // For weekly, calculate daily averages
   if (period === 'weekly') {
@@ -253,6 +323,10 @@ export default {
   listEntries, 
   sumForPeriod, 
   resetWaterEntries, 
+  upsertWeightEntry,
+  getWeightEntries,
+  getWeightTrend,
+  deleteWeightEntry,
   addFoodEntry, 
   getFoodEntries, 
   deleteFoodEntry, 

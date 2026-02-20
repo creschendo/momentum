@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { calculateTDEE } from '../../api/nutrition';
 import { useTheme } from '../../context/ThemeContext';
+import { useCalorieGoal } from './context/CalorieGoalContext';
 
 export default function BMRCalculator() {
   const { theme, isDark } = useTheme();
+  const { calorieGoal, setCalorieGoal } = useCalorieGoal();
   const caretColor = isDark ? 'e4e7eb' : '1a202c';
   const caretIcon = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23${caretColor}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")`;
   const [formData, setFormData] = useState({
@@ -17,6 +19,15 @@ export default function BMRCalculator() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedGoal, setSelectedGoal] = useState(null);
+  const [confirmingGoal, setConfirmingGoal] = useState(null);
+
+  // Load selected goal from context on mount
+  useEffect(() => {
+    if (calorieGoal) {
+      setSelectedGoal(calorieGoal.goalKey);
+    }
+  }, [calorieGoal]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,12 +37,13 @@ export default function BMRCalculator() {
     }));
   };
 
+  // Converts form values as needed and requests TDEE from the backend.
   const handleCalculate = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      // Convert imperial to metric if needed
+      // Backend expects metric values, so convert imperial input first.
       const dataToSend = system === 'imperial' 
         ? {
             age: formData.age,
@@ -65,9 +77,16 @@ export default function BMRCalculator() {
   return (
     <div style={{ marginTop: 0, padding: '24px', backgroundColor: theme.bgSecondary, borderRadius: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: theme.text }}>
-          BMR & TDEE Calculator
-        </h3>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: theme.text }}>
+            BMR & TDEE Calculator
+          </h3>
+          {selectedGoal && result && (
+            <div style={{ fontSize: 13, color: theme.textSecondary, marginTop: 4 }}>
+              Daily Goal: <strong style={{ color: theme.primary }}>{result.calorieTargets?.[selectedGoal]} calories</strong>
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {['metric', 'imperial'].map((sys) => (
             <button
@@ -273,7 +292,7 @@ export default function BMRCalculator() {
           style={{
             gridColumn: '1 / -1',
             padding: '12px 20px',
-            backgroundColor: loading ? '#cbd5e0' : '#3182ce',
+            backgroundColor: loading ? theme.border : theme.primary,
             color: 'white',
             border: 'none',
             borderRadius: 6,
@@ -283,8 +302,8 @@ export default function BMRCalculator() {
             transition: 'background 200ms',
             marginTop: 8
           }}
-          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = '#2563a8')}
-          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = '#3182ce')}
+          onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = theme.primaryDark)}
+          onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = theme.primary)}
         >
           {loading ? 'Calculating...' : 'Calculate'}
         </button>
@@ -310,38 +329,152 @@ export default function BMRCalculator() {
           backgroundColor: isDark ? theme.bgTertiary : 'white',
           border: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0',
           borderRadius: 8,
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          display: 'flex',
+          flexDirection: 'column',
           gap: 24
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              BMR
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ textAlign: 'center', padding: '16px 12px', backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 6, border: `1px solid ${isDark ? theme.border : '#e2e8f0'}`, gridColumn: '1 / -1'  }}>
+              <div style={{ fontSize: 10, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                BMR
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: theme.primary, marginBottom: 4 }}>
+                {result.bmr}
+              </div>
+              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096' }}>
+                at rest
+              </div>
             </div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: '#3182ce', marginBottom: 4 }}>
-              {result.bmr}
-            </div>
-            <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096' }}>
-              calories/day at rest
-            </div>
+
+            {[
+              { key: 'maintain', label: 'Maintain Weight', value: result.calorieTargets?.maintain || result.tdee, color: '#48bb78', desc: 'no change' },
+              { key: 'mildWeightLoss', label: 'Mild Loss', value: result.calorieTargets?.mildWeightLoss, color: '#4299e1', desc: '0.5 lb/week' },
+              { key: 'weightLoss', label: 'Weight Loss', value: result.calorieTargets?.weightLoss, color: '#3182ce', desc: '1 lb/week' },
+              { key: 'extremeWeightLoss', label: 'Extreme Weight Loss', value: result.calorieTargets?.extremeWeightLoss, color: '#ed8936', desc: '1.5 lb/week' }
+            ].map((goal) => (
+              <div 
+                key={goal.key} 
+                onClick={() => setConfirmingGoal(goal)}
+                style={{ 
+                  textAlign: 'center', 
+                  padding: '16px 12px', 
+                  backgroundColor: selectedGoal === goal.key ? goal.color : (isDark ? theme.bgSecondary : '#f7fafc'), 
+                  borderRadius: 6, 
+                  border: selectedGoal === goal.key ? `2px solid ${goal.color}` : `1px solid ${isDark ? theme.border : '#e2e8f0'}`,
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                  transform: 'scale(1.0)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.03)';
+                  e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`;
+                  if (selectedGoal !== goal.key) {
+                    e.currentTarget.style.backgroundColor = isDark ? theme.border : '#e2e8f0';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  if (selectedGoal !== goal.key) {
+                    e.currentTarget.style.backgroundColor = isDark ? theme.bgSecondary : '#f7fafc';
+                  }
+                }}
+              >
+                <div style={{ fontSize: 10, color: selectedGoal === goal.key ? 'white' : (isDark ? theme.textMuted : '#718096'), fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {goal.label}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: selectedGoal === goal.key ? 'white' : goal.color, marginBottom: 4 }}>
+                  {goal.value}
+                </div>
+                <div style={{ fontSize: 11, color: selectedGoal === goal.key ? 'rgba(255,255,255,0.9)' : (isDark ? theme.textMuted : '#718096') }}>
+                  {goal.desc}
+                </div>
+              </div>
+            ))}
+
           </div>
 
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              TDEE
+          {confirmingGoal && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+              <div style={{ backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 24, maxWidth: 400, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>Set Daily Calorie Goal</h3>
+                <p style={{ margin: '0 0 16px 0', fontSize: 14, color: theme.textSecondary }}>
+                  Set your daily calorie goal to <strong>{confirmingGoal.value} calories</strong> ({confirmingGoal.label.toLowerCase()})?
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setConfirmingGoal(null)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: theme.bgTertiary,
+                      color: theme.text,
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 200ms'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = theme.border;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = theme.bgTertiary;
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedGoal(confirmingGoal.key);
+                      setCalorieGoal({
+                        goalKey: confirmingGoal.key,
+                        goalValue: confirmingGoal.value,
+                        goalLabel: confirmingGoal.label
+                      });
+                      setConfirmingGoal(null);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: confirmingGoal.color,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 200ms'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.opacity = '0.9';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.opacity = '1';
+                    }}
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: '#3182ce', marginBottom: 4 }}>
-              {result.tdee}
+          )}
+
+          {selectedGoal && (
+            <div style={{ padding: 16, backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 8, border: `2px solid ${theme.primary}`, marginTop: 12 }}>
+              <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Your Daily Goal
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: theme.primary }}>
+                {result.calorieTargets?.[selectedGoal]}
+                <span style={{ fontSize: 14, marginLeft: 8, color: isDark ? theme.textSecondary : '#718096' }}>calories/day</span>
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: isDark ? theme.textMuted : '#718096' }}>
-              calories/day (with activity)
-            </div>
-          </div>
+          )}
 
           {result.macros && (
-            <div style={{ gridColumn: '1 / -1', marginTop: 8, paddingTop: 16, borderTop: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0' }}>
+            <div style={{ marginTop: 8, paddingTop: 16, borderTop: isDark ? `1px solid ${theme.border}` : '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? theme.text : '#1a202c', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Recommended Daily Macros
+                Recommended Daily Macros (based on maintenance)
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                 <div style={{ textAlign: 'center', padding: '12px', backgroundColor: isDark ? theme.bgSecondary : '#f7fafc', borderRadius: 6 }}>

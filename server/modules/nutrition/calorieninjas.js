@@ -69,7 +69,16 @@ async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level })
   bmr = Math.round(bmr);
   const tdee = Math.round(bmr * activity_level);
   
-  // Calculate macro distribution
+  // Calculate calorie targets for different goals (based on caloriecalculator.net)
+  // Deficits are based on 1 lb = ~3,500 calories
+  const calorieTargets = {
+    maintain: tdee,
+    mildWeightLoss: Math.max(1200, Math.round(tdee - 250)),      // ~0.5 lb/week loss
+    weightLoss: Math.max(1200, Math.round(tdee - 500)),          // ~1 lb/week loss
+    extremeWeightLoss: Math.max(1200, Math.round(tdee - 750))    // ~1.5 lb/week loss (enforce 1200 min for safety)
+  };
+  
+  // Calculate macro distribution based on maintain TDEE
   // Protein: 1.8g per kg of body weight (good for muscle building/maintenance)
   // Carbs: 45% of remaining calories
   // Fat: 55% of remaining calories
@@ -82,6 +91,7 @@ async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level })
   return {
     bmr,
     tdee,
+    calorieTargets,
     macros: {
       protein_g: Math.round(proteinG),
       carbs_g: Math.round(carbsCals / 4),

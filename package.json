@@ -9,7 +9,10 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "start": "node server/index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "db:init": "npm --prefix server run db:init",
+    "seed:user": "npm --prefix server run seed:user",
+    "auth:setup": "npm --prefix server run auth:setup"
   },
   "devDependencies": {
     "concurrently": "^8.2.0",

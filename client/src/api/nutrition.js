@@ -28,6 +28,37 @@ export async function resetWaterEntries() {
   return res.json();
 }
 
+// Add or update body weight for a date
+export async function postWeight({ weightKg, entryDate, note }) {
+  const res = await fetch('/api/nutrition/weight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weightKg, entryDate, note })
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Failed to save weight');
+  return res.json();
+}
+
+// Get recent weight entries (descending by date)
+export async function getWeightEntries({ limit = 90 } = {}) {
+  const res = await fetch(`/api/nutrition/weight/entries?limit=${encodeURIComponent(limit)}`);
+  if (!res.ok) throw new Error('Failed to get weight entries');
+  return res.json();
+}
+
+// Get trend points and summary stats for last N days
+export async function getWeightTrend({ days = 30 } = {}) {
+  const res = await fetch(`/api/nutrition/weight/trend?days=${encodeURIComponent(days)}`);
+  if (!res.ok) throw new Error('Failed to get weight trend');
+  return res.json();
+}
+
+export async function deleteWeightEntry(id) {
+  const res = await fetch(`/api/nutrition/weight/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete weight entry');
+  return res.json();
+}
+
 // Search foods via CalorieNinjas
 export async function searchFoods(query) {
   const res = await fetch(`/api/nutrition/search?q=${encodeURIComponent(query)}`);

@@ -70,6 +70,54 @@ Where to go next
 
 If you'd like, I can create a branch, commit these changes, and open a PR with the modular scaffolding and dependency updates.
 
+Authentication setup
+
+This project now includes account auth with cookie-based sessions.
+
+Fast path (recommended):
+
+```powershell
+npm run auth:setup
+```
+
+This runs schema apply + test-user seed in sequence.
+
+Manual path:
+
+1. Apply the latest schema (adds `users` and `user_sessions`):
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d momentum -f server/schema.sql
+```
+
+2. Seed a test user (defaults are provided):
+
+```powershell
+npm --prefix server run seed:user
+```
+
+Optional custom seeded user in PowerShell:
+
+```powershell
+$env:SEED_USER_EMAIL="you@example.com"
+$env:SEED_USER_PASSWORD="yourpassword123"
+$env:SEED_USER_DISPLAY_NAME="Your Name"
+npm --prefix server run seed:user
+```
+
+3. Start server and client:
+
+```powershell
+npm --prefix server run dev
+npm --prefix client run dev
+```
+
+4. Open the app and register/login via the auth screen.
+
+Notes:
+- Protected module APIs now require auth (`/api/nutrition`, `/api/fitness`, `/api/productivity`).
+- Auth endpoints are available at `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
+
 Nutritionix integration
 
 This project includes a small server-side wrapper for the Nutritionix API at `server/modules/nutrition/nutritionix.js`.
