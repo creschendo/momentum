@@ -46,7 +46,7 @@ async function fetchSplitWithDays(splitId) {
 
 // Create a new split
 export async function addSplit(splitData) {
-  const daysCount = Math.max(Number(splitData.days ?? splitData.daysCount ?? 1), 1);
+  const daysCount = Math.max(Number(splitData.days ?? splitData.daysCount ?? 1), 0);
   const now = new Date();
   
   const splitResult = await pool.query(

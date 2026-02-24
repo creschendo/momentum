@@ -10,6 +10,11 @@ body {
 .app-root {
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   padding: 24px;
+  background-image:
+    linear-gradient(var(--grid-line, rgba(255, 255, 255, 0.035)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line, rgba(255, 255, 255, 0.035)) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
 }
 
 .muted {
@@ -35,13 +40,21 @@ body {
   padding: 24px;
   border: 1px solid var(--border, #cbd5e1);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-  transition: all 200ms ease;
+  transition: transform 90ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 90ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 90ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.module-title-card {
+  background: var(--bg-secondary, white);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--border, #cbd5e1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
 }
 
 .module-card:hover {
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 0 0 1px var(--module-hover-outline, var(--border-light, #94a3b8)), 0 8px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
   transform: translateY(-2px);
-  border-color: var(--border-light, #94a3b8);
+  border-color: var(--module-hover-outline, var(--border-light, #94a3b8));
 }
 
 .module-card h2 {

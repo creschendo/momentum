@@ -6,12 +6,10 @@ const CARDIO_TYPES = ['Treadmill', 'Bike', 'Stairmaster', 'Rowing Machine', 'Ell
 
 export default function Splits() {
   // Main workout planner state and CRUD actions come from the split hook.
-  const { splits, loading, error, createSplit, updateSplit, deleteSplit, updateDay, addLift, updateLift, deleteLift, addCardio, updateCardio, deleteCardio } = useSplits();
+  const { splits, loading, error, createSplit, updateSplit, deleteSplit, addDay, updateDay, deleteDay, addLift, updateLift, deleteLift, addCardio, updateCardio, deleteCardio } = useSplits();
   const { theme } = useTheme();
 
-  const [splitTitle, setSplitTitle] = useState('');
   const [expandedSplit, setExpandedSplit] = useState(null);
-  const [days, setDays] = useState(1);
   const [expandedDay, setExpandedDay] = useState(null);
   
   // Lift forms state
@@ -33,8 +31,8 @@ export default function Splits() {
   const [editingCardio, setEditingCardio] = useState(null);
   const [editingSplitId, setEditingSplitId] = useState(null);
   const [editingSplitTitle, setEditingSplitTitle] = useState('');
-  const [editingDaysCount, setEditingDaysCount] = useState(1);
   const [deleteConfirmSplitId, setDeleteConfirmSplitId] = useState(null);
+  const [deleteConfirmDayKey, setDeleteConfirmDayKey] = useState(null);
   const [editingDayKey, setEditingDayKey] = useState(null);
   const [editingDayName, setEditingDayName] = useState('');
   const deleteConfirmRef = useRef(null);
@@ -54,33 +52,59 @@ export default function Splits() {
     };
   }, [deleteConfirmSplitId]);
 
-  const handleCreateSplit = async (e) => {
-    e.preventDefault();
-    if (!splitTitle.trim()) return;
+  const handleCreateSplit = async () => {
+    const splitNumber = splits.length + 1;
+    const splitName = `new split ${splitNumber}`;
     try {
-      await createSplit(splitTitle, Number(days));
-      setSplitTitle('');
-      setDays(1);
+      await createSplit(splitName, 0);
     } catch (err) {
       console.error('Failed to create split:', err);
     }
   };
 
-  const handleDeleteDay = async () => {};
+  const handleDeleteDay = async (splitId, dayId) => {
+    try {
+      await deleteDay(splitId, dayId);
+      setDeleteConfirmDayKey(null);
+      setReorderedDays((prev) => {
+        const next = { ...prev };
+        delete next[splitId];
+        return next;
+      });
+      if (expandedDay === dayId) {
+        setExpandedDay(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete day:', err);
+    }
+  };
+
+  const handleAddDayToSplit = async (split) => {
+    try {
+      const nextDayNumber = (split.days?.length || 0) + 1;
+      await addDay(split.id, `Day ${nextDayNumber}`);
+      setReorderedDays((prev) => {
+        const next = { ...prev };
+        delete next[split.id];
+        return next;
+      });
+      setExpandedSplit(split.id);
+    } catch (err) {
+      console.error('Failed to add day:', err);
+    }
+  };
 
   const handleStartEditSplit = (split) => {
     setEditingSplitId(split.id);
     setEditingSplitTitle(split.title || '');
-    setEditingDaysCount(split.days?.length || 1);
   };
 
   const handleSaveSplit = async (splitId) => {
     if (!editingSplitTitle.trim()) return;
     try {
-      await updateSplit(splitId, { title: editingSplitTitle.trim(), daysCount: editingDaysCount });
+      await updateSplit(splitId, { title: editingSplitTitle.trim() });
       setEditingSplitId(null);
       setEditingSplitTitle('');
-      setEditingDaysCount(1);
     } catch (err) {
       console.error('Failed to update split:', err);
     }
@@ -284,62 +308,37 @@ export default function Splits() {
       
       {error && <div style={{ color: theme.error, marginBottom: 16 }}>{error}</div>}
 
-      {/* Create Split Form */}
-      <form onSubmit={handleCreateSplit} style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            value={splitTitle}
-            onChange={(e) => setSplitTitle(e.target.value)}
-            placeholder="Split name (e.g., Push/Pull/Legs)"
-            style={{
-              flex: 1,
-              minWidth: '150px',
-              padding: '8px 12px',
-              border: `1px solid ${theme.border}`,
-              borderRadius: 6,
-              fontSize: 14,
-              backgroundColor: theme.bg,
-              color: theme.text
-            }}
-          />
-          <select
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              border: `1px solid ${theme.border}`,
-              borderRadius: 6,
-              fontSize: 14,
-              backgroundColor: theme.bg,
-              color: theme.text,
-              minWidth: '100px'
-            }}
-          >
-            {[1, 2, 3, 4, 5, 6, 7].map(d => (
-              <option key={d} value={d}>{d} day{d > 1 ? 's' : ''}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            style={{
-              padding: '8px 16px',
-              backgroundColor: theme.primary,
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-              transition: 'background-color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = theme.primaryDark}
-            onMouseLeave={(e) => e.target.style.backgroundColor = theme.primary}
-          >
-            Create Split
-          </button>
-        </div>
-      </form>
+      <button
+        type="button"
+        onClick={handleCreateSplit}
+        style={{
+          width: '100%',
+          height: 45,
+          marginTop: 18,
+          marginBottom: 18,
+          backgroundColor: '#22c55e',
+          color: 'white',
+          border: 'none',
+          borderRadius: 10,
+          cursor: 'pointer',
+          fontSize: 34,
+          lineHeight: 1,
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background-color 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#16a34a';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = '#22c55e';
+        }}
+        aria-label="Create new split"
+      >
+        +
+      </button>
 
       {/* Splits List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -349,7 +348,7 @@ export default function Splits() {
             style={{
               border: dragOverSplitId === split.id
                 ? `2px dashed ${theme.primary}`
-                : `1.5px solid ${expandedSplit === split.id ? '#0066FF' : theme.border}`,
+                : `1.5px solid ${expandedSplit === split.id ? '#3ecf8e' : theme.border}`,
               borderRadius: 8,
               padding: 16,
               backgroundColor: theme.bgSecondary,
@@ -390,23 +389,6 @@ export default function Splits() {
                         color: theme.text
                       }}
                     />
-                    <select
-                      value={editingDaysCount}
-                      onChange={(e) => setEditingDaysCount(Number(e.target.value))}
-                      style={{
-                        padding: '6px 8px',
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 6,
-                        fontSize: 13,
-                        backgroundColor: theme.bg,
-                        color: theme.text,
-                        minWidth: '80px'
-                      }}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7].map(d => (
-                        <option key={d} value={d}>{d} day{d > 1 ? 's' : ''}</option>
-                      ))}
-                    </select>
                   </div>
                 ) : (
                   <h3
@@ -447,7 +429,6 @@ export default function Splits() {
                       onClick={() => {
                         setEditingSplitId(null);
                         setEditingSplitTitle('');
-                        setEditingDaysCount(1);
                       }}
                       style={{
                         padding: '6px 12px',
@@ -576,7 +557,7 @@ export default function Splits() {
                       onDrop={(e) => handleDrop(e, day, split.id)}
                       onDragEnd={handleDragEnd}
                       style={{
-                        border: `1px solid ${expandedDay === day.id ? '#0066FF' : theme.border}`,
+                        border: `1px solid ${expandedDay === day.id ? '#3ecf8e' : theme.border}`,
                         borderRadius: 6,
                         padding: 12,
                         backgroundColor: theme.bg,
@@ -673,26 +654,98 @@ export default function Splits() {
                               </button>
                             </>
                           ) : (
+                            <>
+                              <button
+                                onClick={() => handleStartEditDay(day)}
+                                style={{
+                                  padding: '4px 8px',
+                                  backgroundColor: theme.primary,
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                  transition: 'opacity 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmDayKey(`${split.id}-${day.id}`)}
+                                style={{
+                                  padding: '4px 8px',
+                                  backgroundColor: theme.error,
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                  transition: 'opacity 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                aria-label="Delete day"
+                              >
+                                🗑
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {deleteConfirmDayKey === `${split.id}-${day.id}` && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            padding: 8,
+                            borderRadius: 6,
+                            border: `1px solid ${theme.border}`,
+                            backgroundColor: theme.bgSecondary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8
+                          }}
+                        >
+                          <span style={{ fontSize: 12, color: theme.textSecondary }}>
+                            Delete &quot;{day.name}&quot;?
+                          </span>
+                          <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              onClick={() => handleStartEditDay(day)}
+                              type="button"
+                              onClick={() => setDeleteConfirmDayKey(null)}
                               style={{
                                 padding: '4px 8px',
-                                backgroundColor: theme.primary,
+                                backgroundColor: theme.bgTertiary,
+                                color: theme.text,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 11
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDay(split.id, day.id)}
+                              style={{
+                                padding: '4px 8px',
+                                backgroundColor: theme.error,
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 4,
                                 cursor: 'pointer',
-                                fontSize: 11,
-                                transition: 'opacity 0.2s'
+                                fontSize: 11
                               }}
-                              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-                              onMouseLeave={(e) => e.target.style.opacity = '1'}
                             >
-                              Edit
+                              Delete
                             </button>
-                          )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Day Content */}
                       {expandedDay === day.id && (
@@ -1329,6 +1382,36 @@ export default function Splits() {
                       No days available in this split
                     </div>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddDayToSplit(split)}
+                    style={{
+                      width: '100%',
+                      height: 46,
+                      backgroundColor: '#22c55e',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontSize: 28,
+                      lineHeight: 1,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#16a34a';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#22c55e';
+                    }}
+                    aria-label={`Add day to ${split.name}`}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             )}

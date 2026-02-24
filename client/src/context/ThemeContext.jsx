@@ -2,39 +2,23 @@ import React, { createContext, useState, useMemo } from 'react';
 
 export const ThemeContext = createContext();
 
-const lightTheme = {
-  bg: '#ffffff',
-  bgSecondary: '#fafbfc',
-  bgTertiary: '#f7fafc',
-  text: '#1a202c',
-  textSecondary: '#4a5568',
-  textMuted: '#718096',
-  border: '#cbd5e0',
-  borderLight: '#a0aec0',
-  primary: '#3182ce',
-  primaryDark: '#2563a8',
-  primaryLight: '#edf2f7',
-  error: '#fc8181',
-  errorBg: '#fed7d7'
-};
-
-const darkTheme = {
-  bg: '#0f1419',
-  bgSecondary: '#1a1f2e',
-  bgTertiary: '#22283a',
-  text: '#e4e7eb',
-  textSecondary: '#b8bdc8',
-  textMuted: '#8b92a4',
-  border: '#2d3548',
-  borderLight: '#3d4558',
-  primary: '#60a5fa',
-  primaryDark: '#3b82f6',
-  primaryLight: '#1e3a5f',
+const coveTheme = {
+  bg: '#071e2e',
+  bgSecondary: '#0d2d40',
+  bgTertiary: '#113a52',
+  text: '#d6f0f5',
+  textSecondary: '#96cfe0',
+  textMuted: '#5fa8c0',
+  border: '#1a4d65',
+  borderLight: '#236280',
+  primary: '#38c9d4',
+  primaryDark: '#1ba8b4',
+  primaryLight: '#0d3d50',
   error: '#f87171',
   errorBg: '#7f1d1d'
 };
 
-const forestTheme = {
+const gladeTheme = {
   bg: '#0a0f0d',
   bgSecondary: '#152820',
   bgTertiary: '#1f3a2f',
@@ -66,24 +50,38 @@ const emberTheme = {
   errorBg: '#7f1d1d'
 };
 
+const nightTheme = {
+  bg: '#080808',
+  bgSecondary: '#0f0f10',
+  bgTertiary: '#151517',
+  text: '#f5f5f5',
+  textSecondary: '#cfcfcf',
+  textMuted: '#9a9a9a',
+  border: '#26272a',
+  borderLight: '#32343a',
+  primary: '#3ecf8e',
+  primaryDark: '#2eb67d',
+  primaryLight: '#0f2119',
+  error: '#f87171',
+  errorBg: '#7f1d1d'
+};
+
 const themes = {
-  light: lightTheme,
-  dark: darkTheme,
-  forest: forestTheme,
-  ember: emberTheme
+  cove: coveTheme,
+  glade: gladeTheme,
+  night: nightTheme
 };
 
 export const themeNames = {
-  light: 'Light',
-  dark: 'Dark',
-  forest: 'Forest',
-  ember: 'Ember'
+  cove: 'Cove',
+  glade: 'Glade',
+  night: 'Night'
 };
 
 export function ThemeProvider({ children }) {
   const [currentTheme, setCurrentTheme] = useState(() => {
     const saved = localStorage.getItem('current-theme');
-    return saved && themes[saved] ? saved : 'dark';
+    return saved && themes[saved] ? saved : 'night';
   });
 
   const theme = themes[currentTheme];

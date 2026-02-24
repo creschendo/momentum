@@ -7,7 +7,7 @@ export default function ModuleCard({ title, description, status }) {
   };
 
   return (
-    <div className="module-card">
+    <div className="module-title-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span
           style={{
