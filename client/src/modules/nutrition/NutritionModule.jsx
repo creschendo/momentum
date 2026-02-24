@@ -7,6 +7,9 @@ import BMRCalculator from './BMRCalculator';
 import { useTheme } from '../../context/ThemeContext';
 import { CalorieGoalProvider } from './context/CalorieGoalContext';
 
+const TAB_ACCENT = '#3ecf8e';
+const TAB_ACCENT_GLOW = '0 0 0 2px rgba(62, 207, 142, 0.35)';
+
 export default function NutritionModule() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('food');
@@ -44,16 +47,25 @@ export default function NutritionModule() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = TAB_ACCENT;
+                    e.currentTarget.style.boxShadow = TAB_ACCENT_GLOW;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = isActive ? TAB_ACCENT : theme.border;
+                    e.currentTarget.style.boxShadow = isActive ? TAB_ACCENT_GLOW : 'none';
+                  }}
                   style={{
                     padding: '8px 14px',
                     borderRadius: 8,
-                    border: `1px solid ${isActive ? theme.primary : theme.border}`,
+                    border: `1px solid ${isActive ? TAB_ACCENT : theme.border}`,
                     backgroundColor: isActive ? theme.bgSecondary : theme.bg,
                     color: theme.text,
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'border-color 0.2s, background-color 0.2s'
+                    boxShadow: isActive ? TAB_ACCENT_GLOW : 'none',
+                    transition: 'border-color 0.2s, background-color 0.2s, box-shadow 0.2s'
                   }}
                 >
                   {tab.label}

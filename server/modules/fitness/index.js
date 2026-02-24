@@ -22,7 +22,7 @@ router.post('/splits', async (req, res) => {
   try {
     const { title, name, days } = req.body;
     const splitName = name || title;
-    if (!splitName || !days) {
+    if (!splitName || days === undefined || days === null) {
       return res.status(400).json({ error: 'Name and days are required' });
     }
     const split = await service.addSplit({ name: splitName, daysCount: Number(days) });

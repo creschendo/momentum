@@ -1,10 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 
 const KG_TO_LB = 2.2046226218;
 
-export default function DashboardSummary() {
+function DashboardSummary() {
   const { theme } = useTheme();
+  const [cardOrder, setCardOrder] = useState(() => {
+    const fallback = ['weight-change', 'weight-streak', 'water', 'calories'];
+    const saved = localStorage.getItem('dashboard-summary-card-order');
+    if (!saved) return fallback;
+
+    try {
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return fallback;
+      const filtered = parsed.filter((item) => fallback.includes(item));
+      const missing = fallback.filter((item) => !filtered.includes(item));
+      const normalized = [...filtered, ...missing];
+      return normalized.length === fallback.length ? normalized : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  const [draggedCard, setDraggedCard] = useState(null);
+  const [dragOverCard, setDragOverCard] = useState(null);
+  const dragSourceRef = useRef(null);
+  const isDraggingRef = useRef(false);
   const [stats, setStats] = useState({
     weightChange: 0,
     weightLoggingStreak: 0,
@@ -18,11 +39,20 @@ export default function DashboardSummary() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      setError(null);
+    localStorage.setItem('dashboard-summary-card-order', JSON.stringify(cardOrder));
+  }, [cardOrder]);
+
+  useEffect(() => {
+    const fetchStats = async ({ background = false } = {}) => {
+      if (!background && !hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
+      if (!background) {
+        setError(null);
+      }
       try {
         // Fetch weight trend for this week and all-time
         const [weightTrend, foodSummary, waterSummary] = await Promise.all([
@@ -73,23 +103,30 @@ export default function DashboardSummary() {
           waterGoal: 2000,
           latestWeight,
         });
+        hasLoadedOnceRef.current = true;
       } catch (err) {
         console.error('Failed to fetch dashboard stats:', err);
-        setError(err.message);
+        if (!hasLoadedOnceRef.current) {
+          setError(err.message);
+        }
       } finally {
-        setLoading(false);
+        if (!background || !hasLoadedOnceRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStats();
 
-    // Set up interval to refresh stats every 30 seconds
-    const interval = setInterval(fetchStats, 10000);
+    // Set up interval to refresh stats every 2 minutes
+    const interval = setInterval(() => {
+      fetchStats({ background: true });
+    }, 120000);
 
     // Listen for storage changes (e.g., calorie goal updates)
     const handleStorageChange = (e) => {
       if (e.key === 'calorieGoal') {
-        fetchStats();
+        fetchStats({ background: true });
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -103,16 +140,119 @@ export default function DashboardSummary() {
   const waterPercent = Math.min(100, Math.round((stats.waterToday / stats.waterGoal) * 100));
   const caloriePercent = Math.min(100, Math.round((stats.caloriestoday / stats.caloriesGoal) * 100));
 
-  const StatCard = ({ label, value, unit, color, subtitle }) => (
-    <div
+  const handleCardMouseDown = (cardKey) => {
+    dragSourceRef.current = cardKey;
+    setDraggedCard(cardKey);
+  };
+
+  const handleCardMouseUp = () => {
+    if (!isDraggingRef.current) {
+      dragSourceRef.current = null;
+      setDraggedCard(null);
+      setDragOverCard(null);
+    }
+  };
+
+  const handleCardDragStart = (e, cardKey) => {
+    const sourceCardKey = dragSourceRef.current || cardKey;
+    dragSourceRef.current = sourceCardKey;
+    isDraggingRef.current = true;
+    setDraggedCard(sourceCardKey);
+    setDragOverCard(null);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/x-summary-card', sourceCardKey);
+    e.dataTransfer.setData('text/plain', sourceCardKey);
+  };
+
+  const handleCardDragOver = (e, cardKey) => {
+    if (dragSourceRef.current === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCard(cardKey);
+  };
+
+  const handleCardDragEnter = (e, cardKey) => {
+    if (dragSourceRef.current === null) return;
+    e.preventDefault();
+    setDragOverCard(cardKey);
+  };
+
+  const handleCardDragLeave = (e) => {
+    if (e.currentTarget.contains(e.relatedTarget)) {
+      return;
+    }
+    setDragOverCard(null);
+  };
+
+  const handleCardDrop = (e, targetCardKey) => {
+    if (dragSourceRef.current === null) return;
+    e.preventDefault();
+
+    const sourceCardKey = dragSourceRef.current;
+
+    if (!sourceCardKey) return;
+    if (sourceCardKey === targetCardKey) {
+      setDraggedCard(null);
+      setDragOverCard(null);
+      return;
+    }
+
+    const sourceIndex = cardOrder.indexOf(sourceCardKey);
+    const targetIndex = cardOrder.indexOf(targetCardKey);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggedCard(null);
+      setDragOverCard(null);
+      return;
+    }
+
+    const nextOrder = [...cardOrder];
+    nextOrder[sourceIndex] = targetCardKey;
+    nextOrder[targetIndex] = sourceCardKey;
+    setCardOrder(nextOrder);
+    isDraggingRef.current = false;
+    dragSourceRef.current = null;
+    setDraggedCard(null);
+    setDragOverCard(null);
+  };
+
+  const handleCardDragEnd = () => {
+    isDraggingRef.current = false;
+    dragSourceRef.current = null;
+    setDraggedCard(null);
+    setDragOverCard(null);
+  };
+
+  const getCardDragStyles = (cardKey) => {
+    const isDragging = draggedCard === cardKey;
+    const isDraggingOver = draggedCard !== null && dragOverCard === cardKey;
+
+    return {
+      opacity: isDragging ? 0.4 : 1,
+      border: isDraggingOver ? `2px dashed ${theme.primary}` : `1px solid ${theme.border}`,
+      backgroundColor: isDraggingOver ? theme.bgTertiary : theme.bg,
+      cursor: 'grab'
+    };
+  };
+
+  const StatCard = ({ cardKey, label, value, unit, color, subtitle }) => (
+    <motion.div
+      className="module-card"
+      draggable
+      onMouseDown={() => handleCardMouseDown(cardKey)}
+      onMouseUp={handleCardMouseUp}
+      onDragStart={(e) => handleCardDragStart(e, cardKey)}
+      onDragEnter={(e) => handleCardDragEnter(e, cardKey)}
+      onDragOver={(e) => handleCardDragOver(e, cardKey)}
+      onDragLeave={(e) => handleCardDragLeave(e)}
+      onDrop={(e) => handleCardDrop(e, cardKey)}
+      onDragEnd={handleCardDragEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 4,
         padding: 12,
-        backgroundColor: theme.bg,
+        ...getCardDragStyles(cardKey),
         borderRadius: 8,
-        border: `1px solid ${theme.border}`,
         flex: 1,
         minWidth: 140,
       }}
@@ -123,21 +263,31 @@ export default function DashboardSummary() {
         <span style={{ fontSize: 12, marginLeft: 4, color: theme.textSecondary }}>{unit}</span>
       </div>
       {subtitle && <div style={{ fontSize: 11, color: theme.textMuted }}>{subtitle}</div>}
-    </div>
+    </motion.div>
   );
 
-  const ProgressBar = ({ label, current, goal, unit, color }) => {
+  const ProgressBar = ({ cardKey, label, current, goal, unit, color }) => {
     const percent = Math.min(100, Math.round((current / goal) * 100));
+
     return (
-      <div
+      <motion.div
+        className="module-card"
+        draggable
+        onMouseDown={() => handleCardMouseDown(cardKey)}
+        onMouseUp={handleCardMouseUp}
+        onDragStart={(e) => handleCardDragStart(e, cardKey)}
+        onDragEnter={(e) => handleCardDragEnter(e, cardKey)}
+        onDragOver={(e) => handleCardDragOver(e, cardKey)}
+        onDragLeave={(e) => handleCardDragLeave(e)}
+        onDrop={(e) => handleCardDrop(e, cardKey)}
+        onDragEnd={handleCardDragEnd}
         style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
           padding: 12,
-          backgroundColor: theme.bg,
+          ...getCardDragStyles(cardKey),
           borderRadius: 8,
-          border: `1px solid ${theme.border}`,
           flex: 1,
           minWidth: 160,
         }}
@@ -157,17 +307,18 @@ export default function DashboardSummary() {
             overflow: 'hidden',
           }}
         >
-          <div
+          <motion.div
+            initial={false}
+            animate={{ width: `${percent}%` }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             style={{
               height: '100%',
-              width: `${percent}%`,
               backgroundColor: color,
-              transition: 'width 0.3s ease',
             }}
           />
         </div>
         <div style={{ fontSize: 11, color: theme.textMuted }}>{percent}% complete</div>
-      </div>
+      </motion.div>
     );
   };
 
@@ -220,35 +371,64 @@ export default function DashboardSummary() {
       </h2>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-        <StatCard
-          label="Weight Change"
-          value={`${(stats.weightChange * KG_TO_LB) > 0 ? '+' : ''}${(stats.weightChange * KG_TO_LB).toFixed(1)}`}
-          unit="lbs"
-          color={stats.weightChange < 0 ? theme.primary : stats.weightChange > 0 ? theme.error : theme.textSecondary}
-          subtitle={`Latest: ${stats.latestWeight ? (stats.latestWeight * KG_TO_LB).toFixed(1) : '—'} lbs`}
-        />
-        <StatCard
-          label="Weight Streak"
-          value={stats.weightLoggingStreak}
-          unit="days"
-          color={theme.primary}
-          subtitle={`${stats.daysLoggedThisWeek} days this week`}
-        />
-        <ProgressBar
-          label="Water"
-          current={Math.round(stats.waterToday / 250)}
-          goal={Math.round(stats.waterGoal / 250)}
-          unit="cps"
-          color={theme.primary}
-        />
-        <ProgressBar
-          label="Calories"
-          current={stats.caloriestoday}
-          goal={stats.caloriesGoal}
-          unit="cal"
-          color={theme.primary}
-        />
+        {cardOrder.map((cardKey, index) => {
+          if (cardKey === 'weight-change') {
+            return (
+              <StatCard
+                key={cardKey}
+                cardKey={cardKey}
+                label="Weight Change"
+                value={`${(stats.weightChange * KG_TO_LB) > 0 ? '+' : ''}${(stats.weightChange * KG_TO_LB).toFixed(1)}`}
+                unit="lbs"
+                color={stats.weightChange < 0 ? theme.primary : stats.weightChange > 0 ? theme.error : theme.textSecondary}
+                subtitle={`Latest: ${stats.latestWeight ? (stats.latestWeight * KG_TO_LB).toFixed(1) : '—'} lbs`}
+              />
+            );
+          }
+
+          if (cardKey === 'weight-streak') {
+            return (
+              <StatCard
+                key={cardKey}
+                cardKey={cardKey}
+                label="Weight Streak"
+                value={stats.weightLoggingStreak}
+                unit="days"
+                color={theme.primary}
+                subtitle={`${stats.daysLoggedThisWeek} days this week`}
+              />
+            );
+          }
+
+          if (cardKey === 'water') {
+            return (
+              <ProgressBar
+                key={cardKey}
+                cardKey={cardKey}
+                label="Water"
+                current={Math.round(stats.waterToday / 250)}
+                goal={Math.round(stats.waterGoal / 250)}
+                unit="cps"
+                color={theme.primary}
+              />
+            );
+          }
+
+          return (
+            <ProgressBar
+              key={cardKey}
+              cardKey={cardKey}
+              label="Calories"
+              current={stats.caloriestoday}
+              goal={stats.caloriesGoal}
+              unit="cal"
+              color={theme.primary}
+            />
+          );
+        })}
       </div>
     </div>
   );
 }
+
+export default memo(DashboardSummary);

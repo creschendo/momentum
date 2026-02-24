@@ -7,6 +7,9 @@ const VIEW_OPTIONS = [
   { key: 'month', label: 'Monthly' }
 ];
 
+const CALENDAR_ACCENT = '#3ecf8e';
+const CALENDAR_ACCENT_GLOW = '0 0 0 2px rgba(62, 207, 142, 0.35)';
+
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function startOfDay(date) {
@@ -73,15 +76,25 @@ function ViewButton({ active, onClick, label, theme }) {
   return (
     <button
       onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = CALENDAR_ACCENT_GLOW;
+        e.currentTarget.style.borderColor = CALENDAR_ACCENT;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = active ? CALENDAR_ACCENT_GLOW : 'none';
+        e.currentTarget.style.borderColor = active ? CALENDAR_ACCENT : theme.border;
+      }}
       style={{
         padding: '8px 12px',
         borderRadius: 6,
-        border: `1px solid ${active ? theme.primary : theme.border}`,
-        backgroundColor: active ? theme.primary : theme.bg,
+        border: `1px solid ${active ? CALENDAR_ACCENT : theme.border}`,
+        backgroundColor: active ? CALENDAR_ACCENT : theme.bg,
         color: active ? theme.bg : theme.text,
         fontSize: 13,
         fontWeight: 600,
-        cursor: 'pointer'
+        cursor: 'pointer',
+        boxShadow: active ? CALENDAR_ACCENT_GLOW : 'none',
+        transition: 'box-shadow 0.2s ease, border-color 0.2s ease'
       }}
     >
       {label}
@@ -92,6 +105,16 @@ function ViewButton({ active, onClick, label, theme }) {
 export default function CalendarApp() {
   const { theme } = useTheme();
   const containerRef = useRef(null);
+
+  const applyCalendarButtonHighlight = (event) => {
+    event.currentTarget.style.boxShadow = CALENDAR_ACCENT_GLOW;
+    event.currentTarget.style.borderColor = CALENDAR_ACCENT;
+  };
+
+  const clearCalendarButtonHighlight = (event, defaultBorderColor = theme.border) => {
+    event.currentTarget.style.boxShadow = 'none';
+    event.currentTarget.style.borderColor = defaultBorderColor;
+  };
 
   // Calendar view state and anchor date drive day/week/month rendering windows.
   const [view, setView] = useState('week');
@@ -367,6 +390,8 @@ export default function CalendarApp() {
               <button
                 type="button"
                 onClick={() => setEditingEventId(null)}
+                onMouseEnter={applyCalendarButtonHighlight}
+                onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
                 style={{
                   padding: '5px 8px',
                   borderRadius: 6,
@@ -382,6 +407,8 @@ export default function CalendarApp() {
               <button
                 type="button"
                 onClick={() => handleSaveEditedEvent(eventItem.id)}
+                onMouseEnter={applyCalendarButtonHighlight}
+                onMouseLeave={(e) => clearCalendarButtonHighlight(e, CALENDAR_ACCENT)}
                 style={{
                   padding: '5px 8px',
                   borderRadius: 6,
@@ -403,6 +430,8 @@ export default function CalendarApp() {
               <button
                 type="button"
                 onClick={() => handleStartEditEvent(eventItem)}
+                onMouseEnter={applyCalendarButtonHighlight}
+                onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
                 style={{
                   padding: '5px 8px',
                   borderRadius: 6,
@@ -418,6 +447,8 @@ export default function CalendarApp() {
               <button
                 type="button"
                 onClick={() => setDeleteConfirmEventId(eventItem.id)}
+                onMouseEnter={applyCalendarButtonHighlight}
+                onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.error)}
                 style={{
                   padding: '5px 8px',
                   borderRadius: 6,
@@ -463,6 +494,8 @@ export default function CalendarApp() {
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmEventId(null)}
+                    onMouseEnter={applyCalendarButtonHighlight}
+                    onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
                     style={{
                       padding: '5px 8px',
                       borderRadius: 6,
@@ -478,6 +511,8 @@ export default function CalendarApp() {
                   <button
                     type="button"
                     onClick={() => handleDeleteEvent(eventItem.id)}
+                    onMouseEnter={applyCalendarButtonHighlight}
+                    onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.error)}
                     style={{
                       padding: '5px 8px',
                       borderRadius: 6,
@@ -531,6 +566,8 @@ export default function CalendarApp() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={handlePrevious}
+            onMouseEnter={applyCalendarButtonHighlight}
+            onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
             style={{
               padding: '8px 12px',
               border: `1px solid ${theme.border}`,
@@ -546,6 +583,8 @@ export default function CalendarApp() {
           </button>
           <button
             onClick={() => setAnchorDate(startOfDay(new Date()))}
+            onMouseEnter={applyCalendarButtonHighlight}
+            onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
             style={{
               padding: '8px 12px',
               border: `1px solid ${theme.border}`,
@@ -561,6 +600,8 @@ export default function CalendarApp() {
           </button>
           <button
             onClick={handleNext}
+            onMouseEnter={applyCalendarButtonHighlight}
+            onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
             style={{
               padding: '8px 12px',
               border: `1px solid ${theme.border}`,
@@ -654,6 +695,8 @@ export default function CalendarApp() {
         </div>
         <button
           type="submit"
+          onMouseEnter={applyCalendarButtonHighlight}
+          onMouseLeave={(e) => clearCalendarButtonHighlight(e, CALENDAR_ACCENT)}
           style={{
             padding: '8px 12px',
             borderRadius: 6,
