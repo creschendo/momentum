@@ -4,7 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useCalorieGoal } from './context/CalorieGoalContext';
 
 export default function FoodLogger() {
-  const { theme, isDark } = useTheme();
+  const { theme, isDark, currentTheme } = useTheme();
   const { calorieGoal } = useCalorieGoal();
   // Hook centralizes search, staged meal editing, persistence, and summaries.
   const { 
@@ -35,6 +35,47 @@ export default function FoodLogger() {
   const [editingFoodIndex, setEditingFoodIndex] = useState(null);
   const [editingPortionValue, setEditingPortionValue] = useState('');
   const [deleteConfirmMealId, setDeleteConfirmMealId] = useState(null);
+  const [mealsOpen, setMealsOpen] = useState(false);
+  const macroPeriodAccent = theme.primaryDark;
+  const macroPeriodAccentGlow = currentTheme === 'cove' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : '0 0 0 2px rgba(62, 207, 142, 0.35)';
+  const searchHoverOutline = currentTheme === 'night' ? 'rgba(255, 255, 255, 0.55)' : theme.borderLight;
+  const searchResultHoverOutline = currentTheme === 'night' ? 'rgba(255, 255, 255, 0.45)' : theme.primaryDark;
+  const searchResultHoverBg = isDark ? theme.bgSecondary : '#f8fafc';
+  const mealsDropdownHighlight = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.55)' : theme.borderLight;
+
+  const getServingFromFoodName = (foodName) => {
+    const match = String(foodName || '').match(/\((\d+(?:\.\d+)?)g\)/);
+    const value = Number(match?.[1] || '100');
+    return Number.isFinite(value) && value > 0 ? value : 100;
+  };
+
+  const getNutritionBasis = (food) => {
+    if (food?.nutritionBasis) return food.nutritionBasis;
+    const servingGrams = Number(food?.servingGrams) > 0 ? Number(food.servingGrams) : getServingFromFoodName(food?.foodName);
+    const safeServing = servingGrams > 0 ? servingGrams : 100;
+    return {
+      caloriesPerGram: (Number(food?.calories) || 0) / safeServing,
+      proteinPerGram: (Number(food?.protein) || 0) / safeServing,
+      carbsPerGram: (Number(food?.carbs) || 0) / safeServing,
+      fatPerGram: (Number(food?.fat) || 0) / safeServing
+    };
+  };
+
+  const buildFoodFromBasis = (food, grams) => {
+    const basis = getNutritionBasis(food);
+    const baseName = food?.baseName || String(food?.foodName || '').replace(/\s*\(\d+(?:\.\d+)?g\)/, '');
+    return {
+      ...food,
+      baseName,
+      servingGrams: grams,
+      nutritionBasis: basis,
+      foodName: `${baseName} (${grams}g)`,
+      calories: Math.round(basis.caloriesPerGram * grams),
+      protein: Math.round(basis.proteinPerGram * grams),
+      carbs: Math.round(basis.carbsPerGram * grams),
+      fat: Math.round(basis.fatPerGram * grams)
+    };
+  };
 
   // Progress ring component
   const ProgressRing = ({ value, max, color, size = 80 }) => {
@@ -95,7 +136,16 @@ export default function FoodLogger() {
 
     const servingSizeNumber = getServingSizeNumber();
     const multiplier = servingSizeNumber / (selectedFood.serving_weight_grams || 100);
+    const sourceServing = selectedFood.serving_weight_grams || 100;
     const food = {
+      baseName: selectedFood.food_name,
+      servingGrams: servingSizeNumber,
+      nutritionBasis: {
+        caloriesPerGram: (selectedFood.nf_calories || 0) / sourceServing,
+        proteinPerGram: (selectedFood.nf_protein || 0) / sourceServing,
+        carbsPerGram: (selectedFood.nf_total_carbohydrate || 0) / sourceServing,
+        fatPerGram: (selectedFood.nf_total_fat || 0) / sourceServing
+      },
       foodName: `${selectedFood.food_name} (${servingSizeNumber}g)`,
       calories: Math.round((selectedFood.nf_calories || 0) * multiplier),
       protein: Math.round((selectedFood.nf_protein || 0) * multiplier),
@@ -142,7 +192,17 @@ export default function FoodLogger() {
             fontSize: 14,
             fontFamily: 'inherit',
             backgroundColor: isDark ? theme.bgTertiary : 'white',
-            color: isDark ? theme.text : '#1a202c'
+            color: isDark ? theme.text : '#1a202c',
+            boxShadow: 'none',
+            transition: 'border-color 200ms ease, box-shadow 200ms ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = searchHoverOutline;
+            e.currentTarget.style.boxShadow = `0 0 0 2px ${searchHoverOutline}`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = isDark ? theme.border : '#cbd5e0';
+            e.currentTarget.style.boxShadow = 'none';
           }}
         />
         <button
@@ -169,26 +229,49 @@ export default function FoodLogger() {
 
       {/* Search Results */}
       {searchResults && searchResults.common && searchResults.common.length > 0 && (
-        <div style={{ marginBottom: 20, padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 6, border: isDark ? `1px solid ${theme.border}` : '1px solid #cbd5e0' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? theme.textMuted : '#718096', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Search Results</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 200, overflowY: 'auto' }}>
+        <div className="tab-swap-fade" style={{ marginBottom: 20, padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 8, border: isDark ? `1px solid ${theme.border}` : '1px solid #cbd5e0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? theme.textMuted : '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Search Results</div>
+            <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#718096' }}>{Math.min(searchResults.common.length, 10)} shown</div>
+          </div>
+          <ul className="meals-dropdown-scroll" style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 240, overflowY: 'auto' }}>
             {searchResults.common.slice(0, 10).map((food, idx) => (
-              <li key={idx} style={{ marginBottom: 6 }}>
+              <li key={idx} style={{ marginBottom: 8 }}>
                 <button
+                  type="button"
                   onClick={() => selectFood(food)}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: isDark ? theme.primary : '#3182ce',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '9px 10px',
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 8,
+                    color: isDark ? theme.text : '#1a202c',
                     cursor: 'pointer',
                     fontSize: 14,
-                    padding: '6px 0',
-                    transition: 'color 200ms'
+                    textAlign: 'left',
+                    boxShadow: 'none',
+                    transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease'
                   }}
-                  onMouseEnter={(e) => (e.target.style.color = isDark ? theme.primaryDark : '#2563a8')}
-                  onMouseLeave={(e) => (e.target.style.color = isDark ? theme.primary : '#3182ce')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = searchResultHoverBg;
+                    e.currentTarget.style.borderColor = searchResultHoverOutline;
+                    e.currentTarget.style.boxShadow = `0 0 0 2px ${searchResultHoverOutline}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = theme.border;
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
-                  {food.food_name}
+                  <span style={{ fontWeight: 500 }}>{food.food_name}</span>
+                  <span style={{ fontSize: 11, color: theme.textMuted, whiteSpace: 'nowrap' }}>
+                    ~{Math.round(food.serving_weight_grams || 100)}g
+                  </span>
                 </button>
               </li>
             ))}
@@ -206,6 +289,7 @@ export default function FoodLogger() {
                 Serving Size (g)
               </label>
               <input
+                className="no-spin"
                 type="number"
                 value={servingSize}
                 onChange={(e) => setServingSize(e.target.value)}
@@ -329,6 +413,7 @@ export default function FoodLogger() {
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                       <label style={{ fontSize: 12, color: isDark ? theme.textMuted : '#4a5568' }}>Portion:</label>
                       <input
+                        className="no-spin"
                         type="number"
                         value={editingPortionValue}
                         onChange={(e) => {
@@ -337,21 +422,11 @@ export default function FoodLogger() {
                           if (newValue === '') return;
                           const newSize = Number(newValue);
                           if (!Number.isFinite(newSize) || newSize <= 0) return;
-                          const baseName = food.foodName.replace(/\s*\(\d+g\)/, '');
-                          const originalSize = parseInt(food.foodName.match(/\((\d+)g\)/)?.[1] || 100, 10);
-                          const multiplier = newSize / originalSize;
-                          
-                          updateFoodInCurrentMeal(idx, {
-                            foodName: `${baseName} (${newSize}g)`,
-                            calories: Math.round(food.calories * multiplier),
-                            protein: Math.round(food.protein * multiplier),
-                            carbs: Math.round(food.carbs * multiplier),
-                            fat: Math.round(food.fat * multiplier)
-                          });
+                          updateFoodInCurrentMeal(idx, buildFoodFromBasis(food, newSize));
                         }}
                         onBlur={() => {
                           if (editingPortionValue === '') {
-                            setEditingPortionValue(String(parseInt(food.foodName.match(/\((\d+)g\)/)?.[1] || 100, 10)));
+                            setEditingPortionValue(String(food.servingGrams || getServingFromFoodName(food.foodName)));
                           }
                         }}
                         min={1}
@@ -403,7 +478,7 @@ export default function FoodLogger() {
                       <button
                         onClick={() => {
                           setEditingFoodIndex(idx);
-                          setEditingPortionValue(String(parseInt(food.foodName.match(/\((\d+)g\)/)?.[1] || 100, 10)));
+                          setEditingPortionValue(String(food.servingGrams || getServingFromFoodName(food.foodName)));
                         }}
                         style={{
                           padding: '6px 12px',
@@ -525,161 +600,143 @@ export default function FoodLogger() {
         </div>
       )}
 
-      {/* Today's Meals */}
-      {meals && meals.length > 0 && (
-        <div style={{ marginTop: 16, padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 6, border: `1px solid ${theme.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
-            Your Meals
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {meals.slice(0, 10).map((meal) => {
-              const totalCals = meal.foods.reduce((sum, f) => sum + (Number(f.calories) || 0), 0);
-              const totalProtein = meal.foods.reduce((sum, f) => sum + (Number(f.protein) || 0), 0);
-              const totalCarbs = meal.foods.reduce((sum, f) => sum + (Number(f.carbs) || 0), 0);
-              const totalFat = meal.foods.reduce((sum, f) => sum + (Number(f.fat) || 0), 0);
+      {/* Meals dropdown (collapsed by default) */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+          Your Meals
+        </div>
+        <button
+          onClick={() => setMealsOpen((v) => !v)}
+          aria-expanded={mealsOpen}
+          aria-label={mealsOpen ? 'Collapse meals' : 'Expand meals'}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            backgroundColor: isDark ? theme.bgTertiary : 'white',
+            border: `1px solid ${theme.border}`,
+            borderBottom: mealsOpen ? 'none' : `1px solid ${theme.border}`,
+            color: isDark ? theme.text : '#1a202c',
+            borderRadius: mealsOpen ? '6px 6px 0 0' : 6,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            boxShadow: 'none',
+            transition: 'box-shadow 200ms ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = `0 0 0 2px ${mealsDropdownHighlight}`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              fontSize: 14,
+              lineHeight: 1,
+              color: isDark ? theme.textMuted : '#4a5568',
+              transform: mealsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 220ms ease'
+            }}
+          >
+            ▾
+          </span>
+        </button>
+
+        <div
+          style={{
+            marginTop: 0,
+            maxHeight: mealsOpen ? 560 : 0,
+            opacity: mealsOpen ? 1 : 0,
+            transform: mealsOpen ? 'translateY(0)' : 'translateY(-6px)',
+            overflow: 'hidden',
+            willChange: 'max-height, opacity, transform',
+            transition: 'max-height 360ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms ease, transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), margin-top 220ms ease'
+          }}
+        >
+          <div className="meals-dropdown-scroll" style={{ padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: '0 0 6px 6px', border: `1px solid ${theme.border}`, borderTop: 'none', maxHeight: 520, overflowY: 'auto', scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+            {(() => {
+              if (!meals || meals.length === 0) return <div style={{ fontSize: 13, color: isDark ? theme.textMuted : '#718096' }}>No meals logged</div>;
+
+              // group meals by date (YYYY-MM-DD), only include up to a week before
+              const now = new Date();
+              const cutoff = new Date();
+              cutoff.setDate(now.getDate() - 7);
+
+              const recent = meals.filter(m => new Date(m.timestamp) >= cutoff);
+              // ensure most recent first
+              recent.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+              const groups = recent.reduce((acc, meal) => {
+                const d = new Date(meal.timestamp);
+                const key = d.toISOString().slice(0, 10);
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(meal);
+                return acc;
+              }, {});
+
+              const grouped = Object.keys(groups)
+                .sort((a, b) => new Date(b) - new Date(a))
+                .map(k => ({ date: k, meals: groups[k] }));
 
               return (
-                <div
-                  key={meal.id}
-                  style={{
-                    padding: '12px',
-                    backgroundColor: theme.bgSecondary,
-                    borderRadius: 6,
-                    border: `1px solid ${theme.border}`
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: theme.text, marginBottom: 4 }}>
-                        {meal.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>
-                        {Math.round(totalCals)}cal • {Math.round(totalProtein)}p • {Math.round(totalCarbs)}c • {Math.round(totalFat)}f
-                      </div>
-                      <div style={{ fontSize: 11, color: theme.textMuted, fontStyle: 'italic' }}>
-                        {meal.foods.length} item{meal.foods.length !== 1 ? 's' : ''}
-                      </div>
-                    </div>
-                    <div style={{ position: 'relative', display: 'flex', gap: 6 }}>
-                      <button
-                        onClick={() => startEditingMeal(meal)}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: theme.primary,
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          transition: 'background 200ms'
-                        }}
-                        onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
-                        onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmMealId(meal.id)}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: theme.error,
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          transition: 'background 200ms'
-                        }}
-                        onMouseEnter={(e) => (e.target.style.opacity = '0.9')}
-                        onMouseLeave={(e) => (e.target.style.opacity = '1')}
-                      >
-                        Delete
-                      </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {grouped.map(group => (
+                    <div key={group.date}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginBottom: 8 }}>{new Date(group.date).toLocaleDateString()}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {group.meals.map(meal => {
+                          const totalCals = meal.foods.reduce((sum, f) => sum + (Number(f.calories) || 0), 0);
+                          const totalProtein = meal.foods.reduce((sum, f) => sum + (Number(f.protein) || 0), 0);
+                          const totalCarbs = meal.foods.reduce((sum, f) => sum + (Number(f.carbs) || 0), 0);
+                          const totalFat = meal.foods.reduce((sum, f) => sum + (Number(f.fat) || 0), 0);
 
-                      {deleteConfirmMealId === meal.id && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 36,
-                            right: 0,
-                            backgroundColor: theme.bg,
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: 8,
-                            padding: 10,
-                            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                            zIndex: 2,
-                            minWidth: 170
-                          }}
-                        >
-                          <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>
-                            Delete this meal?
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfirmMealId(null)}
-                              style={{
-                                padding: '6px 8px',
-                                backgroundColor: theme.bgTertiary,
-                                color: theme.text,
-                                border: `1px solid ${theme.border}`,
-                                borderRadius: 6,
-                                fontSize: 12,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                deleteMealEntry(meal.id);
-                                setDeleteConfirmMealId(null);
-                              }}
-                              style={{
-                                padding: '6px 8px',
-                                backgroundColor: theme.error,
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 6,
-                                fontSize: 12,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                          return (
+                            <div key={meal.id} style={{ padding: '12px', backgroundColor: theme.bgSecondary, borderRadius: 6, border: `1px solid ${theme.border}` }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.text, marginBottom: 4 }}>{meal.name}</div>
+                                  <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>{Math.round(totalCals)}cal • {Math.round(totalProtein)}p • {Math.round(totalCarbs)}c • {Math.round(totalFat)}f</div>
+                                  <div style={{ fontSize: 11, color: theme.textMuted, fontStyle: 'italic' }}>{meal.foods.length} item{meal.foods.length !== 1 ? 's' : ''}</div>
+                                </div>
+                                <div style={{ position: 'relative', display: 'flex', gap: 6 }}>
+                                  <button onClick={() => startEditingMeal(meal)} style={{ padding: '6px 12px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)} onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}>Edit</button>
+                                  <button onClick={() => setDeleteConfirmMealId(meal.id)} style={{ padding: '6px 12px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.opacity = '0.9')} onMouseLeave={(e) => (e.target.style.opacity = '1')}>Delete</button>
+
+                                  {deleteConfirmMealId === meal.id && (
+                                    <div style={{ position: 'absolute', top: 36, right: 0, backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 2, minWidth: 170 }}>
+                                      <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>Delete this meal?</div>
+                                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                        <button type="button" onClick={() => setDeleteConfirmMealId(null)} style={{ padding: '6px 8px', backgroundColor: theme.bgTertiary, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                                        <button type="button" onClick={() => { deleteMealEntry(meal.id); setDeleteConfirmMealId(null); }} style={{ padding: '6px 8px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Delete</button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <details style={{ marginTop: 8 }}>
+                                <summary style={{ fontSize: 11, color: isDark ? theme.primary : '#3182ce', cursor: 'pointer', fontWeight: 500, userSelect: 'none' }}>Show Foods</summary>
+                                <div style={{ marginTop: 8, paddingLeft: 12 }}>{meal.foods.map((food, idx) => (<div key={idx} style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4 }}>• {food.foodName} ({food.calories}cal, {food.protein}p, {food.carbs}c, {food.fat}f)</div>))}</div>
+                              </details>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                  
-                  <details style={{ marginTop: 8 }}>
-                    <summary style={{ 
-                      fontSize: 11, 
-                      color: isDark ? theme.primary : '#3182ce', 
-                      cursor: 'pointer', 
-                      fontWeight: 500,
-                      userSelect: 'none'
-                    }}>
-                      Show Foods
-                    </summary>
-                    <div style={{ marginTop: 8, paddingLeft: 12 }}>
-                      {meal.foods.map((food, idx) => (
-                        <div key={idx} style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4 }}>
-                          • {food.foodName} ({food.calories}cal, {food.protein}p, {food.carbs}c, {food.fat}f)
-                        </div>
-                      ))}
-                    </div>
-                  </details>
+                  ))}
                 </div>
               );
-            })}
+            })()}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Macro Summary */}
       <div style={{ marginTop: 16, padding: 16, backgroundColor: isDark ? theme.bgTertiary : 'white', borderRadius: 6, border: isDark ? `1px solid ${theme.border}` : '1px solid #cbd5e0' }}>
@@ -689,21 +746,24 @@ export default function FoodLogger() {
             <button
               onClick={() => changePeriod('daily')}
               style={{
-                padding: '6px 12px',
-                backgroundColor: period === 'daily' ? '#3182ce' : (isDark ? theme.bgSecondary : '#e2e8f0'),
-                color: period === 'daily' ? 'white' : (isDark ? theme.textMuted : '#4a5568'),
-                border: 'none',
+                padding: '8px 12px',
+                backgroundColor: period === 'daily' ? macroPeriodAccent : theme.bg,
+                color: period === 'daily' ? theme.bg : theme.text,
+                border: `1px solid ${period === 'daily' ? macroPeriodAccent : theme.border}`,
                 borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
+                fontSize: 13,
+                fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 200ms'
+                boxShadow: period === 'daily' ? macroPeriodAccentGlow : 'none',
+                transition: 'box-shadow 0.2s ease, border-color 0.2s ease'
               }}
               onMouseEnter={(e) => {
-                if (period !== 'daily') e.target.style.backgroundColor = isDark ? theme.bgTertiary : '#cbd5e0';
+                e.currentTarget.style.boxShadow = macroPeriodAccentGlow;
+                e.currentTarget.style.borderColor = macroPeriodAccent;
               }}
               onMouseLeave={(e) => {
-                if (period !== 'daily') e.target.style.backgroundColor = isDark ? theme.bgSecondary : '#e2e8f0';
+                e.currentTarget.style.boxShadow = period === 'daily' ? macroPeriodAccentGlow : 'none';
+                e.currentTarget.style.borderColor = period === 'daily' ? macroPeriodAccent : theme.border;
               }}
             >
               Daily
@@ -711,43 +771,71 @@ export default function FoodLogger() {
             <button
               onClick={() => changePeriod('weekly')}
               style={{
-                padding: '6px 12px',
-                backgroundColor: period === 'weekly' ? '#3182ce' : (isDark ? theme.bgSecondary : '#e2e8f0'),
-                color: period === 'weekly' ? 'white' : (isDark ? theme.textMuted : '#4a5568'),
-                border: 'none',
+                padding: '8px 12px',
+                backgroundColor: period === 'weekly' ? macroPeriodAccent : theme.bg,
+                color: period === 'weekly' ? theme.bg : theme.text,
+                border: `1px solid ${period === 'weekly' ? macroPeriodAccent : theme.border}`,
                 borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
+                fontSize: 13,
+                fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 200ms'
+                boxShadow: period === 'weekly' ? macroPeriodAccentGlow : 'none',
+                transition: 'box-shadow 0.2s ease, border-color 0.2s ease'
               }}
               onMouseEnter={(e) => {
-                if (period !== 'weekly') e.target.style.backgroundColor = isDark ? theme.bgTertiary : '#cbd5e0';
+                e.currentTarget.style.boxShadow = macroPeriodAccentGlow;
+                e.currentTarget.style.borderColor = macroPeriodAccent;
               }}
               onMouseLeave={(e) => {
-                if (period !== 'weekly') e.target.style.backgroundColor = isDark ? theme.bgSecondary : '#e2e8f0';
+                e.currentTarget.style.boxShadow = period === 'weekly' ? macroPeriodAccentGlow : 'none';
+                e.currentTarget.style.borderColor = period === 'weekly' ? macroPeriodAccent : theme.border;
               }}
             >
-              Avg
+              Weekly
+            </button>
+            <button
+              onClick={() => changePeriod('monthly')}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: period === 'monthly' ? macroPeriodAccent : theme.bg,
+                color: period === 'monthly' ? theme.bg : theme.text,
+                border: `1px solid ${period === 'monthly' ? macroPeriodAccent : theme.border}`,
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: period === 'monthly' ? macroPeriodAccentGlow : 'none',
+                transition: 'box-shadow 0.2s ease, border-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = macroPeriodAccentGlow;
+                e.currentTarget.style.borderColor = macroPeriodAccent;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = period === 'monthly' ? macroPeriodAccentGlow : 'none';
+                e.currentTarget.style.borderColor = period === 'monthly' ? macroPeriodAccent : theme.border;
+              }}
+            >
+              Monthly
             </button>
           </div>
         </div>
         {loading ? (
           <div style={{ fontSize: 14, color: isDark ? theme.textMuted : '#718096' }}>Loading...</div>
         ) : summary ? (
-          <div>
+          <div key={period} className="tab-swap-fade">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
                   <ProgressRing 
-                    value={period === 'daily' ? summary.totalCalories || 0 : summary.avgCalories || 0} 
+                    value={period === 'weekly' ? summary.avgCalories || 0 : summary.totalCalories || 0} 
                     max={calorieGoal?.goalValue || 2000} 
                     color="#f56565"
                     size={80}
                   />
                   <div style={{ position: 'absolute', textAlign: 'center' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                      {period === 'daily' ? summary.totalCalories || 0 : Math.round(summary.avgCalories || 0)}
+                      {period === 'weekly' ? Math.round(summary.avgCalories || 0) : summary.totalCalories || 0}
                     </div>
                     <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>kcal</div>
                   </div>
@@ -755,7 +843,7 @@ export default function FoodLogger() {
                 <div>
                   <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calories</div>
                   <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
-                    {period === 'daily' ? summary.totalCalories || 0 : Math.round(summary.avgCalories || 0)} / {calorieGoal?.goalValue || 2000} kcal
+                    {period === 'weekly' ? Math.round(summary.avgCalories || 0) : summary.totalCalories || 0} / {calorieGoal?.goalValue || 2000} kcal
                   </div>
                 </div>
               </div>
@@ -763,14 +851,14 @@ export default function FoodLogger() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
                 <ProgressRing 
-                  value={period === 'daily' ? summary.totalProtein || 0 : summary.avgProtein || 0} 
+                  value={period === 'weekly' ? summary.avgProtein || 0 : summary.totalProtein || 0} 
                   max={150} 
                   color="#48bb78"
                   size={80}
                 />
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                    {period === 'daily' ? summary.totalProtein || 0 : Math.round(summary.avgProtein || 0)}
+                    {period === 'weekly' ? Math.round(summary.avgProtein || 0) : summary.totalProtein || 0}
                   </div>
                   <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
                 </div>
@@ -778,7 +866,7 @@ export default function FoodLogger() {
               <div>
                 <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Protein</div>
                 <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
-                  {period === 'daily' ? summary.totalProtein || 0 : Math.round(summary.avgProtein || 0)} / 150 g
+                  {period === 'weekly' ? Math.round(summary.avgProtein || 0) : summary.totalProtein || 0} / 150 g
                 </div>
               </div>
             </div>
@@ -786,14 +874,14 @@ export default function FoodLogger() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
                 <ProgressRing 
-                  value={period === 'daily' ? summary.totalCarbs || 0 : summary.avgCarbs || 0} 
+                  value={period === 'weekly' ? summary.avgCarbs || 0 : summary.totalCarbs || 0} 
                   max={250} 
                   color="#4299e1"
                   size={80}
                 />
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                    {period === 'daily' ? summary.totalCarbs || 0 : Math.round(summary.avgCarbs || 0)}
+                    {period === 'weekly' ? Math.round(summary.avgCarbs || 0) : summary.totalCarbs || 0}
                   </div>
                   <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
                 </div>
@@ -801,7 +889,7 @@ export default function FoodLogger() {
               <div>
                 <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Carbs</div>
                 <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
-                  {period === 'daily' ? summary.totalCarbs || 0 : Math.round(summary.avgCarbs || 0)} / 250 g
+                  {period === 'weekly' ? Math.round(summary.avgCarbs || 0) : summary.totalCarbs || 0} / 250 g
                 </div>
               </div>
             </div>
@@ -809,14 +897,14 @@ export default function FoodLogger() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80 }}>
                 <ProgressRing 
-                  value={period === 'daily' ? summary.totalFat || 0 : summary.avgFat || 0} 
+                  value={period === 'weekly' ? summary.avgFat || 0 : summary.totalFat || 0} 
                   max={65} 
                   color="#ed8936"
                   size={80}
                 />
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? theme.text : '#1a202c' }}>
-                    {period === 'daily' ? summary.totalFat || 0 : Math.round(summary.avgFat || 0)}
+                    {period === 'weekly' ? Math.round(summary.avgFat || 0) : summary.totalFat || 0}
                   </div>
                   <div style={{ fontSize: 9, color: isDark ? theme.textMuted : '#718096' }}>g</div>
                 </div>
@@ -824,7 +912,7 @@ export default function FoodLogger() {
               <div>
                 <div style={{ fontSize: 11, color: isDark ? theme.textMuted : '#a0aec0', fontWeight: 500, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fat</div>
                 <div style={{ fontSize: 13, color: isDark ? theme.textSecondary : '#718096' }}>
-                  {period === 'daily' ? summary.totalFat || 0 : Math.round(summary.avgFat || 0)} / 65 g
+                  {period === 'weekly' ? Math.round(summary.avgFat || 0) : summary.totalFat || 0} / 65 g
                 </div>
               </div>
             </div>

@@ -1,27 +1,27 @@
 # Momentum — Full-stack modular starter (React + Vite + Express)
 
-This repository is a minimal, modular full-stack starter focused on productivity features. It provides a structure to add independent feature modules (nutrition, fitness, productivity, etc.) where each module has a server router and a client UI piece.
+Lightweight modular dashboard combining nutrition, fitness, productivity, and a pomodoro timer. The repo uses an explicit module pattern: each feature exposes a server router and a client UI module.
 
 What's included
 
-- client — Vite + React frontend
-- server — Express backend with modular routers
+- `client` — Vite + React frontend
+- `server` — Express backend with modular routers and PostgreSQL persistence
 
 Quick start
 
-1. From the repository root, install all dependencies (uses npm workspaces):
+1. From the repository root, install dependencies (npm workspaces):
 
 ```powershell
 npm install
 ```
 
-2. Start both server and client in development (opens two processes):
+2. Run both client and server in development:
 
 ```powershell
 npm run dev
 ```
 
-If you prefer separate terminals, run these instead:
+If you prefer separate terminals:
 
 ```powershell
 npm --prefix server run dev
@@ -40,68 +40,42 @@ npm --prefix server run start
 
 Modular architecture
 
-This project is intentionally modular. Each feature area lives in a pair of locations:
+Each feature is split across client and server:
 
-- Server: `server/modules/<module>/index.js` — export an Express router and mount under `/api/<module>`.
-- Client: `client/src/modules/<module>/index.jsx` — export module metadata used by the UI.
+- Server: `server/modules/<module>/index.js` exports an Express router mounted at `/api/<module>`.
+- Client: `client/src/modules/<module>/` contains UI, hooks, and module registration used by the dashboard.
 
-Three example modules are included:
+Example modules
 
-- `nutrition` — server: `/api/nutrition/status`, client: Nutrition card
-- `fitness` — server: `/api/fitness/status`, client: Fitness card
-- `productivity` — server: `/api/productivity/status`, client: Productivity card
+- `nutrition` — water, foods, meals, weight tracking, BMR/TDEE
+- `fitness` — splits, days, lifts, cardio
+- `productivity` — tasks and calendar events
 
-To add a new module:
+To add a module:
 
-1. Create `server/modules/<yourmodule>/index.js` and export an Express router.
-2. Create `client/src/modules/<yourmodule>/index.jsx` exporting an object with `key`, `title`, and `description`.
-3. Import the client module in `client/src/App.jsx` (or add dynamic loading) and add server routes under `/api/<yourmodule>`.
+1. Add `server/modules/<yourmodule>/index.js` (router) and `service.js` (logic + DB access).
+2. Add `client/src/modules/<yourmodule>/` with a root component and hooks.
+3. Add a client API wrapper under `client/src/api/` and mount the server route in `server/index.js`.
 
-This structure keeps modules isolated and makes it easy to add features or swap implementations (e.g., replace a module with a microservice).
+Authentication
 
-Contract (tiny)
-- Inputs: HTTP requests from browser
-- Outputs: JSON from server (GET /api/<module>/status) and React UI
-
-Where to go next
-- Add persistence (database) and authentication
-- Add per-module tests and more endpoints (create/read/update/delete)
-- Add TypeScript support if you prefer stricter typing
-
-If you'd like, I can create a branch, commit these changes, and open a PR with the modular scaffolding and dependency updates.
-
-Authentication setup
-
-This project now includes account auth with cookie-based sessions.
-
-Fast path (recommended):
+This project uses cookie-based session auth. Run the setup helper to create DB schema + a seeded user:
 
 ```powershell
 npm run auth:setup
 ```
 
-This runs schema apply + test-user seed in sequence.
+Manual auth/database setup:
 
-Manual path:
-
-1. Apply the latest schema (adds `users` and `user_sessions`):
+1. Apply the DB schema:
 
 ```powershell
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d momentum -f server/schema.sql
 ```
 
-2. Seed a test user (defaults are provided):
+2. Seed a test user:
 
 ```powershell
-npm --prefix server run seed:user
-```
-
-Optional custom seeded user in PowerShell:
-
-```powershell
-$env:SEED_USER_EMAIL="you@example.com"
-$env:SEED_USER_PASSWORD="yourpassword123"
-$env:SEED_USER_DISPLAY_NAME="Your Name"
 npm --prefix server run seed:user
 ```
 
@@ -112,46 +86,40 @@ npm --prefix server run dev
 npm --prefix client run dev
 ```
 
-4. Open the app and register/login via the auth screen.
-
 Notes:
-- Protected module APIs now require auth (`/api/nutrition`, `/api/fitness`, `/api/productivity`).
-- Auth endpoints are available at `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
 
-Nutritionix integration
+- Protected module APIs require auth: `/api/nutrition`, `/api/fitness`, `/api/productivity`.
+- Auth endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
 
-This project includes a small server-side wrapper for the Nutritionix API at `server/modules/nutrition/nutritionix.js`.
+Nutrition external API
 
-Setup
+The server uses CalorieNinjas for food search/metadata. Configure via environment variable:
 
-1. Sign up for Nutritionix and get your App ID and App Key: https://developer.nutritionix.com/
-2. Create a `.env` file at the repo root (you can copy `.env.example`) and set:
-
-```
-NUTRITIONIX_APP_ID=your_app_id
-NUTRITIONIX_API_KEY=your_api_key
+```text
+CALORIENINJAS_API_KEY=your_api_key
 ```
 
-3. Restart the server (if running) so environment variables are picked up.
+The CalorieNinjas wrapper lives at `server/modules/nutrition/calorieninjas.js` and maps results into the app's expected fields.
 
-How to use the Nutritionix wrapper (server-side)
+Runtime overview
 
-Import the wrapper from the nutrition module and call methods. Example within `server/modules/nutrition/service.js` or a controller:
+- Client hooks call functions in `client/src/api/*` which fetch `/api/*` endpoints.
+- Server routes validate input and call `service.js` functions in each module to interact with Postgres via `server/db.js`.
+- Protected routes use middleware `requireAuth` to resolve `req.user` from session cookies.
 
-```js
-import nutritionix from './nutritionix.js';
+Local scripts
 
-async function example() {
-	// instant search for "banana"
-	const instant = await nutritionix.searchInstant('banana');
+- `npm run dev` — runs client + server concurrently
+- `npm --prefix server run dev` — server only (nodemon)
+- `npm --prefix client run dev` — client only (vite)
+- `npm run start` — start server (serves built client if present)
+- `npm run db:init` (root forwards to `server`) — applies `server/schema.sql`
+- `npm run seed:user` (root forwards to `server`) — seed test user
 
-	// natural language parse "2 eggs and a slice of bread"
-	const parsed = await nutritionix.naturalLanguage('2 eggs and a slice of bread');
-}
-```
+Where to go next
 
-Notes
+- Add stricter per-module user isolation if you expect multi-tenant data (some tables are already user-scoped; others are global in the schema).
+- Add tests for API contracts in `server/modules/*/__tests__`.
+- Consider a lightweight migration tool if you plan frequent schema changes.
 
-- The wrapper expects `NUTRITIONIX_APP_ID` and `NUTRITIONIX_API_KEY` in the environment. It will throw a helpful error if keys are missing.
-- We intentionally added the wrapper but did not change service-level business logic; you can now call these helpers from `nutrition/service.js` when you want to enrich entries with nutrition facts.
-- Do not commit your real `.env` file. Use `.env.example` as a template.
+If you want, I can commit this README update and open a PR. 

@@ -12,10 +12,12 @@ export default function BMRCalculator() {
     age: 25,
     sex: 'male',
     height_cm: 180,
+    height_in: 70,
     weight_kg: 75,
+    weight_lbs: 165,
     activity_level: 1.55
   });
-  const [system, setSystem] = useState('metric'); // 'metric' or 'imperial'
+  const [system, setSystem] = useState('imperial'); // 'metric' or 'imperial'
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -88,7 +90,7 @@ export default function BMRCalculator() {
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {['metric', 'imperial'].map((sys) => (
+          {['imperial', 'metric'].map((sys) => (
             <button
               key={sys}
               onClick={() => setSystem(sys)}
@@ -128,6 +130,7 @@ export default function BMRCalculator() {
             Age (years)
           </label>
           <input
+            className="no-spin"
             type="number"
             name="age"
             value={formData.age}
@@ -188,6 +191,7 @@ export default function BMRCalculator() {
             Height ({isMetric ? 'cm' : 'in'})
           </label>
           <input
+            className="no-spin"
             type="number"
             name={isMetric ? 'height_cm' : 'height_in'}
             value={heightValue}
@@ -221,6 +225,7 @@ export default function BMRCalculator() {
             Weight ({isMetric ? 'kg' : 'lbs'})
           </label>
           <input
+            className="no-spin"
             type="number"
             name={isMetric ? 'weight_kg' : 'weight_lbs'}
             value={weightValue}

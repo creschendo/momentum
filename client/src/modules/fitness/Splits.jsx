@@ -7,7 +7,15 @@ const CARDIO_TYPES = ['Treadmill', 'Bike', 'Stairmaster', 'Rowing Machine', 'Ell
 export default function Splits() {
   // Main workout planner state and CRUD actions come from the split hook.
   const { splits, loading, error, createSplit, updateSplit, deleteSplit, addDay, updateDay, deleteDay, addLift, updateLift, deleteLift, addCardio, updateCardio, deleteCardio } = useSplits();
-  const { theme } = useTheme();
+  const { theme, currentTheme } = useTheme();
+  const hoverTint = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(62, 207, 142, 0.08)';
+  const hoverGlow = currentTheme === 'cove' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : '0 0 0 2px rgba(62, 207, 142, 0.35)';
+  const hoverAccent = theme.primaryDark;
+  const splitDayHoverAccent = currentTheme === 'night' || currentTheme === 'cove' ? '#ffffff' : hoverAccent;
+  const splitDayHoverGlow = currentTheme === 'night' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : hoverGlow;
+  const addButtonHoverTint = 'rgba(255, 255, 255, 0.08)';
+  const addButtonHoverAccent = '#ffffff';
+  const addButtonHoverGlow = '0 0 0 2px rgba(255, 255, 255, 0.45)';
 
   const [expandedSplit, setExpandedSplit] = useState(null);
   const [expandedDay, setExpandedDay] = useState(null);
@@ -300,6 +308,16 @@ export default function Splits() {
     setDragOverSplitId(null);
   };
 
+  const handleSplitHeaderClick = (event, splitId) => {
+    if (event.target.closest('button, input, textarea, select, label')) return;
+    setExpandedSplit(expandedSplit === splitId ? null : splitId);
+  };
+
+  const handleDayHeaderClick = (event, dayId) => {
+    if (event.target.closest('button, input, textarea, select, label')) return;
+    setExpandedDay(expandedDay === dayId ? null : dayId);
+  };
+
   if (loading) return <div style={{ color: theme.textMuted }}>Loading splits...</div>;
 
   return (
@@ -308,76 +326,59 @@ export default function Splits() {
       
       {error && <div style={{ color: theme.error, marginBottom: 16 }}>{error}</div>}
 
-      <button
-        type="button"
-        onClick={handleCreateSplit}
-        style={{
-          width: '100%',
-          height: 45,
-          marginTop: 18,
-          marginBottom: 18,
-          backgroundColor: '#22c55e',
-          color: 'white',
-          border: 'none',
-          borderRadius: 10,
-          cursor: 'pointer',
-          fontSize: 34,
-          lineHeight: 1,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background-color 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#16a34a';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#22c55e';
-        }}
-        aria-label="Create new split"
-      >
-        +
-      </button>
-
       {/* Splits List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {splits.map((split) => (
           <div
             key={split.id}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = splitDayHoverAccent;
+              e.currentTarget.style.boxShadow = splitDayHoverGlow;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = dragOverSplitId === split.id
+                ? theme.primary
+                : (expandedSplit === split.id ? splitDayHoverAccent : theme.border);
+              e.currentTarget.style.boxShadow = 'none';
+            }}
             style={{
               border: dragOverSplitId === split.id
                 ? `2px dashed ${theme.primary}`
-                : `1.5px solid ${expandedSplit === split.id ? '#3ecf8e' : theme.border}`,
+                : `1.5px solid ${expandedSplit === split.id ? splitDayHoverAccent : theme.border}`,
               borderRadius: 8,
               padding: 16,
               backgroundColor: theme.bgSecondary,
-              transition: 'border-color 0.2s'
+              boxShadow: 'none',
+              transition: 'border-color 0.2s, box-shadow 0.2s'
             }}
           >
             {/* Split Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div
+              onClick={(event) => handleSplitHeaderClick(event, split.id)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, position: 'relative', cursor: 'pointer' }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  transform: `translateX(-50%) rotate(${expandedSplit === split.id ? '180deg' : '0deg'})`,
+                  transition: 'transform 220ms ease',
+                  color: theme.textMuted,
+                  fontSize: 14,
+                  lineHeight: 1,
+                  pointerEvents: 'none'
+                }}
+              >
+                ▾
+              </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                <button
-                  onClick={() => setExpandedSplit(expandedSplit === split.id ? null : split.id)}
-                  style={{
-                    padding: '6px 10px',
-                    backgroundColor: 'transparent',
-                    color: theme.text,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    minWidth: '40px'
-                  }}
-                >
-                  {expandedSplit === split.id ? '▼' : '▶'}
-                </button>
                 {editingSplitId === split.id ? (
                   <div style={{ display: 'flex', gap: 8, flex: 1, alignItems: 'center' }}>
                     <input
                       type="text"
                       value={editingSplitTitle}
                       onChange={(e) => setEditingSplitTitle(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       placeholder="Split name"
                       style={{
                         flex: 1,
@@ -409,7 +410,10 @@ export default function Splits() {
                 {editingSplitId === split.id ? (
                   <>
                     <button
-                      onClick={() => handleSaveSplit(split.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveSplit(split.id);
+                      }}
                       style={{
                         padding: '6px 12px',
                         backgroundColor: theme.primary,
@@ -426,7 +430,8 @@ export default function Splits() {
                       Save
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setEditingSplitId(null);
                         setEditingSplitTitle('');
                       }}
@@ -448,7 +453,10 @@ export default function Splits() {
                   </>
                 ) : (
                   <button
-                    onClick={() => handleStartEditSplit(split)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEditSplit(split);
+                    }}
                     style={{
                       padding: '6px 12px',
                       backgroundColor: theme.primary,
@@ -466,7 +474,10 @@ export default function Splits() {
                   </button>
                 )}
                 <button
-                  onClick={() => setDeleteConfirmSplitId(split.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirmSplitId(split.id);
+                  }}
                   style={{
                     padding: '6px 12px',
                     backgroundColor: theme.error,
@@ -505,7 +516,10 @@ export default function Splits() {
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                       <button
                         type="button"
-                        onClick={() => setDeleteConfirmSplitId(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmSplitId(null);
+                        }}
                         style={{
                           padding: '6px 8px',
                           backgroundColor: theme.bgTertiary,
@@ -520,7 +534,8 @@ export default function Splits() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           deleteSplit(split.id);
                           setDeleteConfirmSplitId(null);
                         }}
@@ -544,7 +559,7 @@ export default function Splits() {
 
             {/* Split Content */}
             {expandedSplit === split.id && (
-              <div style={{ marginTop: 16 }}>
+              <div className="tab-swap-fade" style={{ marginTop: 16 }}>
                 {/* Days List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {split.days && split.days.length > 0 ? (
@@ -556,37 +571,50 @@ export default function Splits() {
                       onDragOver={(e) => handleDragOver(e, split.id)}
                       onDrop={(e) => handleDrop(e, day, split.id)}
                       onDragEnd={handleDragEnd}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = splitDayHoverAccent;
+                        e.currentTarget.style.boxShadow = splitDayHoverGlow;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = expandedDay === day.id ? splitDayHoverAccent : theme.border;
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                       style={{
-                        border: `1px solid ${expandedDay === day.id ? '#3ecf8e' : theme.border}`,
+                        border: `1px solid ${expandedDay === day.id ? splitDayHoverAccent : theme.border}`,
                         borderRadius: 6,
                         padding: 12,
                         backgroundColor: theme.bg,
-                        transition: 'border-color 0.15s, opacity 0.15s',
+                        boxShadow: 'none',
+                        transition: 'border-color 0.15s, box-shadow 0.15s, opacity 0.15s',
                         opacity: draggedDay?.day.id === day.id ? 0.5 : 1
                       }}
                     >
                       {/* Day Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div
+                        onClick={(event) => handleDayHeaderClick(event, day.id)}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'relative', cursor: 'pointer' }}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            left: '50%',
+                            transform: `translateX(-50%) rotate(${expandedDay === day.id ? '180deg' : '0deg'})`,
+                            transition: 'transform 220ms ease',
+                            color: theme.textMuted,
+                            fontSize: 12,
+                            lineHeight: 1,
+                            pointerEvents: 'none'
+                          }}
+                        >
+                          ▾
+                        </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                          <button
-                            onClick={() => setExpandedDay(expandedDay === day.id ? null : day.id)}
-                            style={{
-                              padding: '4px 8px',
-                              backgroundColor: 'transparent',
-                              color: theme.text,
-                              border: 'none',
-                              cursor: 'pointer',
-                              fontSize: 12,
-                              minWidth: '32px'
-                            }}
-                          >
-                            {expandedDay === day.id ? '▼' : '▶'}
-                          </button>
                           {editingDayKey === day.id ? (
                             <input
                               type="text"
                               value={editingDayName}
                               onChange={(e) => setEditingDayName(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
                               style={{
                                 flex: 1,
                                 padding: '5px 8px',
@@ -616,7 +644,10 @@ export default function Splits() {
                           {editingDayKey === day.id ? (
                             <>
                               <button
-                                onClick={() => handleSaveDay(split.id, day.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSaveDay(split.id, day.id);
+                                }}
                                 style={{
                                   padding: '4px 8px',
                                   backgroundColor: theme.primary,
@@ -633,7 +664,8 @@ export default function Splits() {
                                 Save
                               </button>
                               <button
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setEditingDayKey(null);
                                   setEditingDayName('');
                                 }}
@@ -656,7 +688,10 @@ export default function Splits() {
                           ) : (
                             <>
                               <button
-                                onClick={() => handleStartEditDay(day)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartEditDay(day);
+                                }}
                                 style={{
                                   padding: '4px 8px',
                                   backgroundColor: theme.primary,
@@ -673,7 +708,10 @@ export default function Splits() {
                                 Edit
                               </button>
                               <button
-                                onClick={() => setDeleteConfirmDayKey(`${split.id}-${day.id}`)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmDayKey(`${split.id}-${day.id}`);
+                                }}
                                 style={{
                                   padding: '4px 8px',
                                   backgroundColor: theme.error,
@@ -715,7 +753,10 @@ export default function Splits() {
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
                               type="button"
-                              onClick={() => setDeleteConfirmDayKey(null)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmDayKey(null);
+                              }}
                               style={{
                                 padding: '4px 8px',
                                 backgroundColor: theme.bgTertiary,
@@ -730,7 +771,10 @@ export default function Splits() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteDay(split.id, day.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDay(split.id, day.id);
+                              }}
                               style={{
                                 padding: '4px 8px',
                                 backgroundColor: theme.error,
@@ -749,7 +793,7 @@ export default function Splits() {
 
                       {/* Day Content */}
                       {expandedDay === day.id && (
-                        <div style={{ marginTop: 12 }}>
+                        <div className="tab-swap-fade" style={{ marginTop: 12 }}>
                           <div style={{ padding: 12, backgroundColor: theme.bgSecondary, borderRadius: 6, marginBottom: 12, fontSize: 13, color: theme.text }}>
                             <div style={{ marginBottom: 8 }}>
                               <strong>Lifts:</strong> {day.lifts?.length > 0 ? day.lifts.map(l => l.exerciseName).join(', ') : 'None'}
@@ -821,6 +865,7 @@ export default function Splits() {
                                                 Sets
                                               </label>
                                               <input
+                                                className="no-spin"
                                                 type="number"
                                                 value={editingLift.sets}
                                                 onChange={(e) => setEditingLift({ ...editingLift, sets: e.target.value })}
@@ -840,6 +885,7 @@ export default function Splits() {
                                                 Reps
                                               </label>
                                               <input
+                                                className="no-spin"
                                                 type="number"
                                                 value={editingLift.reps}
                                                 onChange={(e) => setEditingLift({ ...editingLift, reps: e.target.value })}
@@ -1031,6 +1077,7 @@ export default function Splits() {
                                       }}
                                     />
                                     <input
+                                      className="no-spin"
                                       type="number"
                                       value={getLiftFormValue(split.id, day.id, 'sets', 3)}
                                       onChange={(e) => setLiftFormValue(split.id, day.id, 'sets', e.target.value)}
@@ -1045,6 +1092,7 @@ export default function Splits() {
                                       }}
                                     />
                                     <input
+                                      className="no-spin"
                                       type="number"
                                       value={getLiftFormValue(split.id, day.id, 'reps', 8)}
                                       onChange={(e) => setLiftFormValue(split.id, day.id, 'reps', e.target.value)}
@@ -1128,6 +1176,7 @@ export default function Splits() {
                                                 Duration (min)
                                               </label>
                                               <input
+                                                className="no-spin"
                                                 type="number"
                                                 value={editingCardio.durationMinutes || ''}
                                                 onChange={(e) => setEditingCardio({ ...editingCardio, durationMinutes: e.target.value })}
@@ -1323,6 +1372,7 @@ export default function Splits() {
                                   <label style={{ fontSize: 11, color: theme.textMuted, display: 'block', marginBottom: 4 }}>Duration (min), Intensity</label>
                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, width: '100%' }}>
                                     <input
+                                      className="no-spin"
                                       type="number"
                                       value={getCardioFormValue(split.id, day.id, 'durationMinutes', 20)}
                                       onChange={(e) => setCardioFormValue(split.id, day.id, 'durationMinutes', e.target.value)}
@@ -1389,9 +1439,9 @@ export default function Splits() {
                     style={{
                       width: '100%',
                       height: 46,
-                      backgroundColor: '#22c55e',
-                      color: 'white',
-                      border: 'none',
+                      backgroundColor: theme.bgTertiary,
+                      color: theme.textMuted,
+                      border: `1px solid ${theme.border}`,
                       borderRadius: 8,
                       cursor: 'pointer',
                       fontSize: 28,
@@ -1400,13 +1450,20 @@ export default function Splits() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transition: 'background-color 0.2s ease'
+                      boxShadow: 'none',
+                      transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#16a34a';
+                      e.currentTarget.style.backgroundColor = addButtonHoverTint;
+                      e.currentTarget.style.borderColor = addButtonHoverAccent;
+                      e.currentTarget.style.boxShadow = addButtonHoverGlow;
+                      e.currentTarget.style.color = theme.text;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#22c55e';
+                      e.currentTarget.style.backgroundColor = theme.bgTertiary;
+                      e.currentTarget.style.borderColor = theme.border;
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.color = theme.textMuted;
                     }}
                     aria-label={`Add day to ${split.name}`}
                   >
@@ -1418,6 +1475,45 @@ export default function Splits() {
           </div>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleCreateSplit}
+        style={{
+          width: '100%',
+          height: 40,
+          marginTop: 18,
+          marginBottom: 18,
+          backgroundColor: theme.bgTertiary,
+          color: theme.textMuted,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 10,
+          cursor: 'pointer',
+          fontSize: 34,
+          lineHeight: 1,
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'none',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = addButtonHoverTint;
+          e.currentTarget.style.borderColor = addButtonHoverAccent;
+          e.currentTarget.style.boxShadow = addButtonHoverGlow;
+          e.currentTarget.style.color = theme.text;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = theme.bgTertiary;
+          e.currentTarget.style.borderColor = theme.border;
+          e.currentTarget.style.boxShadow = 'none';
+          e.currentTarget.style.color = theme.textMuted;
+        }}
+        aria-label="Create new split"
+      >
+        +
+      </button>
     </div>
   );
 }

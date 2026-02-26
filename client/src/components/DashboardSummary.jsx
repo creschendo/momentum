@@ -5,9 +5,11 @@ import { useTheme } from '../context/ThemeContext';
 const KG_TO_LB = 2.2046226218;
 
 function DashboardSummary() {
-  const { theme } = useTheme();
+  const { theme, currentTheme } = useTheme();
+  const coveAccent = '#fb923c';
+  const summaryAccent = currentTheme === 'cove' ? coveAccent : theme.primary;
   const [cardOrder, setCardOrder] = useState(() => {
-    const fallback = ['weight-change', 'weight-streak', 'water', 'calories'];
+    const fallback = ['calories', 'water', 'weight-change', 'weight-streak'];
     const saved = localStorage.getItem('dashboard-summary-card-order');
     if (!saved) return fallback;
 
@@ -380,7 +382,7 @@ function DashboardSummary() {
                 label="Weight Change"
                 value={`${(stats.weightChange * KG_TO_LB) > 0 ? '+' : ''}${(stats.weightChange * KG_TO_LB).toFixed(1)}`}
                 unit="lbs"
-                color={stats.weightChange < 0 ? theme.primary : stats.weightChange > 0 ? theme.error : theme.textSecondary}
+                color={currentTheme === 'cove' ? summaryAccent : (stats.weightChange < 0 ? theme.primary : stats.weightChange > 0 ? theme.error : theme.textSecondary)}
                 subtitle={`Latest: ${stats.latestWeight ? (stats.latestWeight * KG_TO_LB).toFixed(1) : '—'} lbs`}
               />
             );
@@ -394,7 +396,7 @@ function DashboardSummary() {
                 label="Weight Streak"
                 value={stats.weightLoggingStreak}
                 unit="days"
-                color={theme.primary}
+                color={summaryAccent}
                 subtitle={`${stats.daysLoggedThisWeek} days this week`}
               />
             );
@@ -409,7 +411,7 @@ function DashboardSummary() {
                 current={Math.round(stats.waterToday / 250)}
                 goal={Math.round(stats.waterGoal / 250)}
                 unit="cps"
-                color={theme.primary}
+                color={summaryAccent}
               />
             );
           }
@@ -422,7 +424,7 @@ function DashboardSummary() {
               current={stats.caloriestoday}
               goal={stats.caloriesGoal}
               unit="cal"
-              color={theme.primary}
+              color={summaryAccent}
             />
           );
         })}

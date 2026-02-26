@@ -28,6 +28,9 @@ export default function WaterTracker() {
     return { size, stroke, radius, circumference, offset };
   }, [progress]);
 
+  const waterHeight = 110 * progress;
+  const waterTop = Math.max(40, 155 - waterHeight);
+
   // Logs water intake and briefly spawns a droplet animation.
   async function onAdd(e) {
     e.preventDefault();
@@ -36,7 +39,7 @@ export default function WaterTracker() {
       
       // Create droplet animation
       const dropletId = dropletIdRef.current++;
-      const randomX = Math.random() * 40 - 20; // -20 to 20
+      const randomX = Math.random() * 0; // keep drops near center
       setAnimatingDroplets((prev) => [...prev, { id: dropletId, offsetX: randomX }]);
       
       // Remove droplet after animation completes
@@ -72,17 +75,32 @@ export default function WaterTracker() {
         @keyframes dropletFall {
           0% {
             opacity: 1;
-            transform: translateY(0) translateX(0);
+            transform: translateY(0) translateX(0) scale(1);
+          }
+          70% {
+            opacity: 0.9;
           }
           100% {
             opacity: 0;
-            transform: translateY(120px) translateX(var(--offset-x));
+            transform: translateY(118px) translateX(var(--offset-x)) scale(0.7);
           }
         }
-        @keyframes dropletSplash {
-          0% { transform: scale(1); }
-          50% { transform: scale(0.8); }
-          100% { transform: scale(0.6); }
+        @keyframes waterWaveDrift {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-24px); }
+        }
+        @keyframes bubbleRise {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.6);
+          }
+          20% {
+            opacity: 0.65;
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-34px) scale(1);
+          }
         }
       `}</style>
       <h3 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: theme.text }}>Water Intake</h3>
@@ -133,68 +151,81 @@ export default function WaterTracker() {
       </form>
 
       <div style={{ marginTop: 12, display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-        {/* Water Bucket */}
+        {/* Water Graphic */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', minWidth: 150 }}>
-          <svg width={120} height={150} viewBox="0 0 120 150" aria-label="Water bucket" style={{ position: 'relative', zIndex: 1 }}>
+          <svg width={140} height={172} viewBox="0 0 140 172" aria-label="Water level visualization" style={{ position: 'relative', zIndex: 1 }}>
             <defs>
-              <clipPath id="bucketClip">
-                <path d="M 25 40 L 20 150 Q 20 155 25 155 L 95 155 Q 100 155 100 150 L 95 40 Z" />
+              <clipPath id="tankClip">
+                <rect x="28" y="32" width="84" height="124" rx="14" ry="14" />
               </clipPath>
               <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={theme.primary} stopOpacity="0.85" />
-                <stop offset="100%" stopColor={theme.primaryDark} stopOpacity="0.9" />
+                <stop offset="0%" stopColor={theme.primary} stopOpacity="0.92" />
+                <stop offset="100%" stopColor={theme.primaryDark} stopOpacity="0.98" />
+              </linearGradient>
+              <linearGradient id="glassShine" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.28)" />
+                <stop offset="45%" stopColor="rgba(255,255,255,0.06)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.0)" />
               </linearGradient>
             </defs>
 
-            {/* Soft shadow */}
-            <ellipse cx="60" cy="150" rx="34" ry="6" fill={theme.borderLight} opacity="0.25" />
+            <ellipse cx="70" cy="160" rx="42" ry="8" fill={theme.borderLight} opacity="0.24" />
 
-            {/* Bucket outline */}
-            <path
-              d="M 25 40 L 20 150 Q 20 155 25 155 L 95 155 Q 100 155 100 150 L 95 40 Z"
-              stroke={theme.textSecondary}
-              strokeWidth="2"
-              fill="none"
-            />
-            {/* Bucket handle */}
-            <path
-              d="M 30 40 Q 30 20 60 15 Q 90 20 90 40"
-              stroke={theme.textSecondary}
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-            />
-            {/* Water fill */}
+            <rect x="28" y="32" width="84" height="124" rx="14" ry="14" fill={theme.bg} stroke={theme.border} strokeWidth="2" />
+
             <rect
-              x="20"
-              y={Math.max(40, 155 - (110 * progress))}
-              width="80"
-              height={110 * progress}
+              x="28"
+              y={waterTop}
+              width="84"
+              height={waterHeight}
               fill="url(#waterGradient)"
-              opacity="0.9"
-              clipPath="url(#bucketClip)"
-              style={{ transition: 'y 300ms ease' }}
-            />
-            
-            {/* Water wave effect */}
-            <path
-              d={`M 25 ${155 - 110 * progress} Q 40 ${155 - 110 * progress - 3} 60 ${155 - 110 * progress} T 95 ${155 - 110 * progress}`}
-              stroke={theme.primary}
-              strokeWidth="1.2"
-              fill="none"
-              opacity="0.7"
+              opacity="0.94"
+              clipPath="url(#tankClip)"
+              style={{ transition: 'y 400ms ease, height 400ms ease' }}
             />
 
-            {/* Animated droplets falling */}
+            <g clipPath="url(#tankClip)" style={{ opacity: 0.8 }}>
+              <path
+                d={`M 20 ${waterTop + 4} C 35 ${waterTop - 3}, 53 ${waterTop + 8}, 70 ${waterTop + 3} C 89 ${waterTop - 2}, 108 ${waterTop + 8}, 130 ${waterTop + 2}`}
+                stroke="rgba(255,255,255,0.65)"
+                strokeWidth="2"
+                fill="none"
+                style={{ animation: 'waterWaveDrift 1800ms linear infinite' }}
+              />
+              <path
+                d={`M 24 ${waterTop + 10} C 40 ${waterTop + 4}, 58 ${waterTop + 14}, 76 ${waterTop + 9} C 93 ${waterTop + 4}, 108 ${waterTop + 14}, 132 ${waterTop + 8}`}
+                stroke="rgba(255,255,255,0.38)"
+                strokeWidth="1.4"
+                fill="none"
+                style={{ animation: 'waterWaveDrift 2600ms linear infinite reverse' }}
+              />
+
+              {[0, 1, 2].map((idx) => (
+                <circle
+                  key={`bubble-${idx}`}
+                  cx={56 + idx * 14}
+                  cy={Math.max(waterTop + 20, 66 + idx * 4)}
+                  r={2 + (idx % 2)}
+                  fill="rgba(255,255,255,0.55)"
+                  style={{
+                    animation: `bubbleRise ${2200 + idx * 400}ms ease-in-out infinite`,
+                    animationDelay: `${idx * 260}ms`
+                  }}
+                />
+              ))}
+            </g>
+
+            <rect x="36" y="40" width="16" height="106" rx="8" ry="8" fill="url(#glassShine)" opacity="0.7" />
+
+            <rect x="28" y="32" width="84" height="124" rx="14" ry="14" fill="none" stroke={theme.textSecondary} strokeOpacity="0.35" strokeWidth="1" />
+
             {animatingDroplets.map((droplet) => (
-              <circle
+              <path
                 key={droplet.id}
-                cx={60 + droplet.offsetX}
-                cy="30"
-                r="4"
+                d="M -4 -4 C -2 -8, 2 -8, 4 -4 C 4 -1, 2 2, 0 4 C -2 2, -4 -1, -4 -4 Z"
                 fill={theme.primary}
-                opacity="0.9"
                 style={{
+                  transform: `translate(${70 + droplet.offsetX}px, 30px)`,
                   animation: `dropletFall 1.2s ease-in forwards`,
                   '--offset-x': `${droplet.offsetX}px`,
                 }}

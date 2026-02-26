@@ -8,7 +8,9 @@ function formatTime(totalSeconds) {
 }
 
 export default function PomodoroTimer() {
-  const { theme } = useTheme();
+  const { theme, currentTheme } = useTheme();
+  const hoverTint = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(62, 207, 142, 0.08)';
+  const hoverGlow = currentTheme === 'cove' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : '0 0 0 2px rgba(62, 207, 142, 0.35)';
   const [workMinutes, setWorkMinutes] = useState(25);
   const [breakMinutes, setBreakMinutes] = useState(5);
   const [mode, setMode] = useState('work');
@@ -76,6 +78,14 @@ export default function PomodoroTimer() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             onClick={() => setIsRunning((s) => !s)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = theme.primaryDark;
+              e.currentTarget.style.boxShadow = hoverGlow;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.primary;
+              e.currentTarget.style.boxShadow = 'none';
+            }}
             style={{
               padding: '10px 16px',
               backgroundColor: theme.primary,
@@ -84,13 +94,25 @@ export default function PomodoroTimer() {
               borderRadius: 6,
               fontSize: 14,
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: 'none',
+              transition: 'background-color 0.2s ease, box-shadow 0.2s ease'
             }}
           >
             {isRunning ? 'Pause' : 'Start'}
           </button>
           <button
             onClick={handleReset}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = hoverTint;
+              e.currentTarget.style.borderColor = theme.primaryDark;
+              e.currentTarget.style.boxShadow = hoverGlow;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.bgTertiary;
+              e.currentTarget.style.borderColor = theme.border;
+              e.currentTarget.style.boxShadow = 'none';
+            }}
             style={{
               padding: '10px 16px',
               backgroundColor: theme.bgTertiary,
@@ -99,7 +121,9 @@ export default function PomodoroTimer() {
               borderRadius: 6,
               fontSize: 14,
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: 'none',
+              transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
             }}
             
           >
@@ -114,6 +138,7 @@ export default function PomodoroTimer() {
             Focus minutes
           </label>
           <input
+            className="no-spin"
             type="number"
             min={1}
             max={120}
@@ -136,6 +161,7 @@ export default function PomodoroTimer() {
             Break minutes
           </label>
           <input
+            className="no-spin"
             type="number"
             min={1}
             max={60}
