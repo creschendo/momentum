@@ -61,7 +61,7 @@ export default function Tasks() {
           type="submit"
           style={{
             padding: '10px 20px',
-            backgroundColor: '#48bb78',
+            backgroundColor: theme.primary,
             color: 'white',
             border: 'none',
             borderRadius: 6,
@@ -71,8 +71,8 @@ export default function Tasks() {
             transition: 'background 200ms',
             whiteSpace: 'nowrap'
           }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = '#38a169')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = '#48bb78')}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
         >
           Add Task
         </button>

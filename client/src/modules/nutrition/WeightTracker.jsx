@@ -137,6 +137,7 @@ export default function WeightTracker() {
 
       <form onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '140px 160px 1fr auto', gap: 8, marginBottom: 16 }}>
         <input
+          className="no-spin"
           type="number"
           step="0.1"
           min={minInput}
@@ -172,6 +173,7 @@ export default function WeightTracker() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <label style={{ fontSize: 12, color: theme.textSecondary }}>Goal</label>
         <input
+          className="no-spin"
           type="number"
           step="0.1"
           min={minInput}

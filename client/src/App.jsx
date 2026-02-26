@@ -63,6 +63,7 @@ function AppContent() {
   const { user, loading, logout } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const coveAccentWhite = '#ffffff';
 
   const getOrdinalSuffix = (day) => {
     if (day >= 11 && day <= 13) return 'th';
@@ -439,7 +440,7 @@ function AppContent() {
         '--bg-secondary': theme.bgSecondary,
         '--border': theme.border,
         '--border-light': theme.borderLight,
-        '--module-hover-outline': currentTheme === 'night' ? 'rgba(255, 255, 255, 0.55)' : theme.borderLight,
+        '--module-hover-outline': currentTheme === 'cove' ? coveAccentWhite : (currentTheme === 'night' ? 'rgba(255, 255, 255, 0.55)' : theme.borderLight),
         '--grid-line': isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(17, 24, 39, 0.06)'
       }}
       {...rootMotionProps}
@@ -470,7 +471,7 @@ function AppContent() {
                         d="M55 145 L55 65 L80 90 L100 70 L120 90 L145 65 L145 145 L125 145 L125 95 L100 120 L75 95 L75 145 Z"
                         fill="white"
                       />
-                      <rect x="40" y="40" width="120" height="8" rx="24" fill="#60a5fa" />
+                      <rect x="40" y="40" width="120" height="8" rx="24" fill={coveAccentWhite} />
                     </>
                   ) : currentTheme === 'glade' ? (
                     <>
@@ -648,7 +649,7 @@ function AppContent() {
                       padding: '6px'
                     }}
                   >
-                    {['night', 'cove', 'glade'].map((themeName, index, arr) => (
+                    {['night', 'cove'].map((themeName, index, arr) => (
                       <button
                         key={themeName}
                         onClick={() => {
@@ -702,6 +703,7 @@ function AppContent() {
         </motion.div>
         <motion.div
           className="module-grid"
+          layout={prefersReducedMotion ? false : true}
           variants={prefersReducedMotion ? undefined : staggerContainer}
           initial={prefersReducedMotion ? undefined : 'hidden'}
           animate={prefersReducedMotion ? undefined : 'show'}
@@ -723,13 +725,36 @@ function AppContent() {
             
             return (
               <motion.div
-                key={moduleKey ? `module-${moduleKey}-${quadrantIndex}` : `empty-${quadrantIndex}`}
+                key={moduleKey ? `module-${moduleKey}` : `empty-${quadrantIndex}`}
                 className="module-card"
+                layout={prefersReducedMotion ? false : true}
+                initial={prefersReducedMotion ? false : { opacity: 0.96, scale: 0.995 }}
+                animate={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        opacity: isDragging ? 0.4 : 1,
+                        scale: isDragging ? 0.995 : 1
+                      }
+                }
+                transition={
+                  prefersReducedMotion
+                    ? undefined
+                    : {
+                        layout: {
+                          type: 'spring',
+                          stiffness: 240,
+                          damping: 28,
+                          mass: 0.9
+                        },
+                        opacity: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
+                      }
+                }
                 variants={prefersReducedMotion ? undefined : staggerItem}
                 whileHover={moduleKey ? { y: -2 } : undefined}
                 style={{
                   gridColumn: isSpanned ? 'span 2' : 'auto',
-                  opacity: isDragging ? 0.4 : 1,
                   border: isDraggingOver 
                     ? `2px dashed ${theme.primary}` 
                     : `1px solid ${isDark ? theme.border : theme.borderLight}`,

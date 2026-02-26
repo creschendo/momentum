@@ -7,11 +7,10 @@ import BMRCalculator from './BMRCalculator';
 import { useTheme } from '../../context/ThemeContext';
 import { CalorieGoalProvider } from './context/CalorieGoalContext';
 
-const TAB_ACCENT = '#3ecf8e';
-const TAB_ACCENT_GLOW = '0 0 0 2px rgba(62, 207, 142, 0.35)';
-
 export default function NutritionModule() {
-  const { theme } = useTheme();
+  const { theme, currentTheme } = useTheme();
+  const TAB_ACCENT = theme.primaryDark;
+  const TAB_ACCENT_GLOW = currentTheme === 'cove' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : '0 0 0 2px rgba(62, 207, 142, 0.35)';
   const [activeTab, setActiveTab] = useState('food');
 
   const tabs = [
@@ -82,7 +81,9 @@ export default function NutritionModule() {
               backgroundColor: theme.bgSecondary
             }}
           >
-            {renderTabContent()}
+            <div key={activeTab} className="tab-swap-fade">
+              {renderTabContent()}
+            </div>
           </div>
         </div>
       </div>

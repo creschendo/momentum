@@ -77,7 +77,7 @@ export async function addSplit(splitData) {
 // Get all splits
 export async function getSplits() {
   const splitsResult = await pool.query(
-    'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits ORDER BY created_at DESC'
+    'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits ORDER BY created_at ASC'
   );
   
   return Promise.all(splitsResult.rows.map(async (split) => {

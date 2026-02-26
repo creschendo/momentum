@@ -29,7 +29,7 @@ export default function useSplits() {
   const createSplit = async (title, days) => {
     try {
       const newSplit = await fitnessApi.createSplit(title, days);
-      setSplits([newSplit, ...splits]);
+      setSplits((prev) => [...prev, newSplit]);
       return newSplit;
     } catch (err) {
       setError(err.message);

@@ -11,8 +11,8 @@ const coveTheme = {
   textMuted: '#5fa8c0',
   border: '#1a4d65',
   borderLight: '#236280',
-  primary: '#38c9d4',
-  primaryDark: '#1ba8b4',
+  primary: '#fb923c',
+  primaryDark: '#fb923c',
   primaryLight: '#0d3d50',
   error: '#f87171',
   errorBg: '#7f1d1d'
