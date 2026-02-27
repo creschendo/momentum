@@ -1,22 +1,38 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import pool from '../../../db.js';
 import service from '../service.js';
 
-describe('nutrition service (water)', () => {
-  // clear module-level entries between tests by re-importing a fresh module is tricky in ESM tests
-  // but our in-memory service exposes new arrays, so we'll rely on times to avoid collisions.
+vi.mock('../../../db.js', () => ({
+  default: {
+    query: vi.fn()
+  }
+}));
 
-  it('adds a water entry and returns correct shape', () => {
-    const entry = service.addWaterEntry({ volumeMl: 300 });
+describe('nutrition service (water)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('adds a water entry and returns correct shape', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [{ id: 1, volumeMl: 300, timestamp: new Date().toISOString() }]
+    });
+
+    const entry = await service.addWaterEntry({ volumeMl: 300 });
     expect(entry).toHaveProperty('id');
     expect(entry).toHaveProperty('volumeMl', 300);
     expect(entry).toHaveProperty('timestamp');
   });
 
-  it('sums water for the daily period', () => {
-    // create entries for today
-    service.addWaterEntry({ volumeMl: 200 });
-    service.addWaterEntry({ volumeMl: 500 });
-    const summary = service.sumForPeriod('daily');
+  it('sums water for the daily period', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 10, volumeMl: 200, timestamp: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, volumeMl: 500, timestamp: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [{ total: 700 }] });
+
+    await service.addWaterEntry({ volumeMl: 200 });
+    await service.addWaterEntry({ volumeMl: 500 });
+    const summary = await service.sumForPeriod('daily');
     expect(summary).toHaveProperty('period', 'daily');
     expect(summary).toHaveProperty('totalMl');
     expect(typeof summary.totalMl).toBe('number');

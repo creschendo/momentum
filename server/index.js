@@ -10,6 +10,7 @@ import authRouter from './modules/auth/index.js';
 import nutritionRouter from './modules/nutrition/index.js';
 import fitnessRouter from './modules/fitness/index.js';
 import productivityRouter from './modules/productivity/index.js';
+import sleepRouter from './modules/sleep/index.js';
 import { requireAuth } from './modules/auth/middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +32,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/nutrition', requireAuth, nutritionRouter);
 app.use('/api/fitness', requireAuth, fitnessRouter);
 app.use('/api/productivity', requireAuth, productivityRouter);
+app.use('/api/sleep', requireAuth, sleepRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
