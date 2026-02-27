@@ -480,6 +480,7 @@ export default function FoodLogger() {
                           setEditingFoodIndex(idx);
                           setEditingPortionValue(String(food.servingGrams || getServingFromFoodName(food.foodName)));
                         }}
+                        aria-label="Edit food"
                         style={{
                           padding: '6px 12px',
                           backgroundColor: theme.primary,
@@ -494,10 +495,11 @@ export default function FoodLogger() {
                         onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)}
                         onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}
                       >
-                        Edit
+                        <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
                       </button>
                       <button
                         onClick={() => removeFoodFromCurrentMeal(idx)}
+                        aria-label="Remove food"
                         style={{
                           padding: '6px 12px',
                           backgroundColor: theme.error,
@@ -512,7 +514,7 @@ export default function FoodLogger() {
                         onMouseEnter={(e) => (e.target.style.opacity = '0.9')}
                         onMouseLeave={(e) => (e.target.style.opacity = '1')}
                       >
-                        Remove
+                        🗑
                       </button>
                     </div>
                   </div>
@@ -706,15 +708,15 @@ export default function FoodLogger() {
                                   <div style={{ fontSize: 11, color: theme.textMuted, fontStyle: 'italic' }}>{meal.foods.length} item{meal.foods.length !== 1 ? 's' : ''}</div>
                                 </div>
                                 <div style={{ position: 'relative', display: 'flex', gap: 6 }}>
-                                  <button onClick={() => startEditingMeal(meal)} style={{ padding: '6px 12px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)} onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}>Edit</button>
-                                  <button onClick={() => setDeleteConfirmMealId(meal.id)} style={{ padding: '6px 12px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.opacity = '0.9')} onMouseLeave={(e) => (e.target.style.opacity = '1')}>Delete</button>
+                                  <button aria-label="Edit meal" onClick={() => startEditingMeal(meal)} style={{ padding: '6px 12px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.backgroundColor = theme.primaryDark)} onMouseLeave={(e) => (e.target.style.backgroundColor = theme.primary)}><span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span></button>
+                                  <button aria-label="Delete meal" onClick={() => setDeleteConfirmMealId(meal.id)} style={{ padding: '6px 12px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: 'pointer' }} onMouseEnter={(e) => (e.target.style.opacity = '0.9')} onMouseLeave={(e) => (e.target.style.opacity = '1')}>🗑</button>
 
                                   {deleteConfirmMealId === meal.id && (
                                     <div style={{ position: 'absolute', top: 36, right: 0, backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: 8, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 2, minWidth: 170 }}>
                                       <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>Delete this meal?</div>
                                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                                         <button type="button" onClick={() => setDeleteConfirmMealId(null)} style={{ padding: '6px 8px', backgroundColor: theme.bgTertiary, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                                        <button type="button" onClick={() => { deleteMealEntry(meal.id); setDeleteConfirmMealId(null); }} style={{ padding: '6px 8px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Delete</button>
+                                        <button type="button" aria-label="Confirm delete meal" onClick={() => { deleteMealEntry(meal.id); setDeleteConfirmMealId(null); }} style={{ padding: '6px 8px', backgroundColor: theme.error, color: 'white', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>🗑</button>
                                       </div>
                                     </div>
                                   )}

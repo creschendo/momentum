@@ -449,7 +449,7 @@ export default function CalendarApp() {
                   borderRadius: 6,
                   border: `1px solid ${theme.border}`,
                   backgroundColor: theme.bgSecondary,
-                  color: theme.text,
+                  color: 'white',
                   fontSize: 12,
                   cursor: 'pointer'
                 }}
@@ -482,6 +482,7 @@ export default function CalendarApp() {
               <button
                 type="button"
                 onClick={() => handleStartEditEvent(eventItem)}
+                aria-label="Edit event"
                 onMouseEnter={applyCalendarButtonHighlight}
                 onMouseLeave={(e) => clearCalendarButtonHighlight(e, theme.border)}
                 style={{
@@ -494,7 +495,7 @@ export default function CalendarApp() {
                   cursor: 'pointer'
                 }}
               >
-                Edit
+                <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
               </button>
               <button
                 type="button"

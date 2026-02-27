@@ -22,6 +22,7 @@ export default function Splits() {
   
   // Lift forms state
   const [liftForms, setLiftForms] = useState({});
+  const [liftWeightErrors, setLiftWeightErrors] = useState({});
   
   // Cardio forms state
   const [cardioForms, setCardioForms] = useState({});
@@ -139,6 +140,10 @@ export default function Splits() {
     const formKey = `${splitId}-${dayId}`;
     const form = liftForms[formKey];
     if (!form?.name?.trim()) return;
+    if (!String(form?.weight ?? '').trim()) {
+      setLiftWeightErrors((prev) => ({ ...prev, [formKey]: true }));
+      return;
+    }
 
     try {
       await addLift(splitId, dayId, {
@@ -148,6 +153,7 @@ export default function Splits() {
         reps: parseInt(form.reps) || 8
       });
       setLiftForms({ ...liftForms, [formKey]: { name: '', weight: '', sets: 3, reps: 8 } });
+      setLiftWeightErrors((prev) => ({ ...prev, [formKey]: false }));
       setActiveOperation(null);
     } catch (err) {
       console.error('Failed to add lift:', err);
@@ -457,6 +463,7 @@ export default function Splits() {
                       e.stopPropagation();
                       handleStartEditSplit(split);
                     }}
+                    aria-label="Edit split"
                     style={{
                       padding: '6px 12px',
                       backgroundColor: theme.primary,
@@ -470,7 +477,7 @@ export default function Splits() {
                     onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                     onMouseLeave={(e) => e.target.style.opacity = '1'}
                   >
-                    Edit
+                    <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
                   </button>
                 )}
                 <button
@@ -694,6 +701,7 @@ export default function Splits() {
                                   e.stopPropagation();
                                   handleStartEditDay(day);
                                 }}
+                                aria-label="Edit day"
                                 style={{
                                   padding: '4px 8px',
                                   backgroundColor: theme.primary,
@@ -707,7 +715,7 @@ export default function Splits() {
                                 onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                                 onMouseLeave={(e) => e.target.style.opacity = '1'}
                               >
-                                Edit
+                                <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
                               </button>
                               <button
                                 onClick={(e) => {
@@ -972,6 +980,7 @@ export default function Splits() {
                                               setActiveOperation(`edit-lift-${lift.id}`);
                                               setEditingLift({ ...lift });
                                             }}
+                                            aria-label="Edit lift"
                                             style={{
                                               padding: '4px 10px',
                                               backgroundColor: theme.primary,
@@ -985,7 +994,7 @@ export default function Splits() {
                                             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                                             onMouseLeave={(e) => e.target.style.opacity = '1'}
                                           >
-                                            Edit
+                                            <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
                                           </button>
                                           <button
                                             onClick={() => handleDeleteLift(split.id, day.id, lift.id)}
@@ -1070,14 +1079,18 @@ export default function Splits() {
                                       type="text"
                                       value={getLiftFormValue(split.id, day.id, 'weight', '')}
                                       onChange={(e) => setLiftFormValue(split.id, day.id, 'weight', e.target.value)}
-                                      placeholder="185 lbs"
+                                      onFocus={() => {
+                                        const formKey = `${split.id}-${day.id}`;
+                                        setLiftWeightErrors((prev) => ({ ...prev, [formKey]: false }));
+                                      }}
+                                      placeholder={liftWeightErrors[`${split.id}-${day.id}`] ? 'Please enter weight' : '185 lbs'}
                                       style={{
                                         padding: '4px 6px',
-                                        border: `1px solid ${theme.border}`,
+                                        border: `1px solid ${liftWeightErrors[`${split.id}-${day.id}`] ? theme.error : theme.border}`,
                                         borderRadius: 4,
                                         fontSize: 12,
                                         backgroundColor: theme.bg,
-                                        color: theme.text
+                                        color: liftWeightErrors[`${split.id}-${day.id}`] ? theme.error : theme.text
                                       }}
                                     />
                                     <input
@@ -1280,6 +1293,7 @@ export default function Splits() {
                                         <div style={{ display: 'flex', gap: 6 }}>
                                           <button
                                             onClick={() => { setActiveOperation(`edit-cardio-${cardio.id}`); setEditingCardio({ ...cardio }); }}
+                                            aria-label="Edit cardio"
                                             style={{
                                               padding: '4px 10px',
                                               backgroundColor: theme.primary,
@@ -1293,7 +1307,7 @@ export default function Splits() {
                                             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                                             onMouseLeave={(e) => e.target.style.opacity = '1'}
                                           >
-                                            Edit
+                                            <span style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>✎</span>
                                           </button>
                                           <button
                                             onClick={() => handleDeleteCardio(split.id, day.id, cardio.id)}

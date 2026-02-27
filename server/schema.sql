@@ -1,7 +1,7 @@
 -- Water tracking
 CREATE TABLE IF NOT EXISTS water_entries (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   volume_ml INTEGER NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS water_entries (
 -- Meals and food tracking
 CREATE TABLE IF NOT EXISTS meals (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   name VARCHAR(255) NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS meal_foods (
 
 CREATE TABLE IF NOT EXISTS food_entries (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   food_name VARCHAR(255) NOT NULL,
   calories INTEGER,
   protein FLOAT,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS food_entries (
 -- Fitness splits
 CREATE TABLE IF NOT EXISTS splits (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   days_count INTEGER DEFAULT 1,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS cardio (
 -- Productivity tasks
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   title VARCHAR(256) NOT NULL,
   notes TEXT,
   done BOOLEAN DEFAULT FALSE,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 -- Productivity calendar events
 CREATE TABLE IF NOT EXISTS events (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER,
+  user_id INTEGER NOT NULL,
   title VARCHAR(256) NOT NULL,
   description TEXT,
   event_date DATE NOT NULL,
@@ -139,6 +139,87 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+
+-- Normalize legacy module tables to auth-aware integrity model.
+-- NOTE: This removes rows with NULL/invalid user_id values before constraints are enforced.
+DELETE FROM water_entries w
+WHERE w.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = w.user_id);
+
+DELETE FROM meals m
+WHERE m.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = m.user_id);
+
+DELETE FROM food_entries f
+WHERE f.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = f.user_id);
+
+DELETE FROM splits s
+WHERE s.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = s.user_id);
+
+DELETE FROM tasks t
+WHERE t.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = t.user_id);
+
+DELETE FROM events e
+WHERE e.user_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = e.user_id);
+
+ALTER TABLE water_entries ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE meals ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE food_entries ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE splits ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE tasks ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE events ALTER COLUMN user_id SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_water_entries_user') THEN
+    ALTER TABLE water_entries
+      ADD CONSTRAINT fk_water_entries_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_meals_user') THEN
+    ALTER TABLE meals
+      ADD CONSTRAINT fk_meals_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_food_entries_user') THEN
+    ALTER TABLE food_entries
+      ADD CONSTRAINT fk_food_entries_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_splits_user') THEN
+    ALTER TABLE splits
+      ADD CONSTRAINT fk_splits_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tasks_user') THEN
+    ALTER TABLE tasks
+      ADD CONSTRAINT fk_tasks_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_events_user') THEN
+    ALTER TABLE events
+      ADD CONSTRAINT fk_events_user
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- Body weight tracking
 CREATE TABLE IF NOT EXISTS weight_entries (
