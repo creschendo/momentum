@@ -1,21 +1,21 @@
 import pool from '../../db.js';
 
 // Water entry functions
-async function addWaterEntry({ volumeMl, timestamp }) {
+async function addWaterEntry({ userId, volumeMl, timestamp }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
-    'INSERT INTO water_entries (volume_ml, timestamp) VALUES ($1, $2) RETURNING id, volume_ml as "volumeMl", timestamp',
-    [volumeMl, ts]
+    'INSERT INTO water_entries (user_id, volume_ml, timestamp) VALUES ($1, $2, $3) RETURNING id, volume_ml as "volumeMl", timestamp',
+    [userId, volumeMl, ts]
   );
   return result.rows[0];
 }
 
-async function listEntries({ since } = {}) {
-  let query = 'SELECT id, volume_ml as "volumeMl", timestamp FROM water_entries';
-  const values = [];
+async function listEntries({ userId, since } = {}) {
+  let query = 'SELECT id, volume_ml as "volumeMl", timestamp FROM water_entries WHERE user_id = $1';
+  const values = [userId];
   
   if (since) {
-    query += ' WHERE timestamp >= $1';
+    query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
   
@@ -24,7 +24,7 @@ async function listEntries({ since } = {}) {
   return result.rows;
 }
 
-async function sumForPeriod(period = 'daily') {
+async function sumForPeriod({ userId, period = 'daily' } = {}) {
   const now = new Date();
   let start;
   
@@ -41,16 +41,16 @@ async function sumForPeriod(period = 'daily') {
   }
   
   const result = await pool.query(
-    'SELECT COALESCE(SUM(volume_ml), 0) as total FROM water_entries WHERE timestamp >= $1',
-    [start]
+    'SELECT COALESCE(SUM(volume_ml), 0) as total FROM water_entries WHERE user_id = $1 AND timestamp >= $2',
+    [userId, start]
   );
   
   const total = Number(result.rows[0].total) || 0;
   return { period, start: start.toISOString(), totalMl: total };
 }
 
-async function resetWaterEntries() {
-  const result = await pool.query('DELETE FROM water_entries');
+async function resetWaterEntries({ userId }) {
+  const result = await pool.query('DELETE FROM water_entries WHERE user_id = $1', [userId]);
   return { message: 'Water entries reset', count: result.rowCount };
 }
 
@@ -121,15 +121,13 @@ async function deleteWeightEntry({ userId, id }) {
 }
 
 // Meal functions
-async function addMeal({ name, foods, timestamp }) {
+async function addMeal({ userId, name, foods, timestamp }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
-  
-  console.log('addMeal called:', { name, foods, timestamp: ts });
-  
+
   // Insert meal and get ID
   const mealResult = await pool.query(
-    'INSERT INTO meals (name, timestamp) VALUES ($1, $2) RETURNING id, name, timestamp',
-    [name, ts]
+    'INSERT INTO meals (user_id, name, timestamp) VALUES ($1, $2, $3) RETURNING id, name, timestamp',
+    [userId, name, ts]
   );
   
   const mealId = mealResult.rows[0].id;
@@ -137,7 +135,6 @@ async function addMeal({ name, foods, timestamp }) {
   // Insert foods for this meal
   if (foods && Array.isArray(foods)) {
     for (const food of foods) {
-      console.log('Inserting food:', food, 'for meal_id:', mealId);
       await pool.query(
         'INSERT INTO meal_foods (meal_id, food_name, calories, protein, carbs, fat) VALUES ($1, $2, $3, $4, $5, $6)',
         [mealId, food.foodName, food.calories, food.protein, food.carbs, food.fat]
@@ -153,18 +150,19 @@ async function addMeal({ name, foods, timestamp }) {
   };
 }
 
-async function getMeals({ since } = {}) {
+async function getMeals({ userId, since } = {}) {
   let query = `
     SELECT m.id, m.name, m.timestamp,
            json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat)) 
            FILTER (WHERE mf.id IS NOT NULL) as foods
     FROM meals m
     LEFT JOIN meal_foods mf ON m.id = mf.meal_id
+    WHERE m.user_id = $1
   `;
-  const values = [];
+  const values = [userId];
   
   if (since) {
-    query += ' WHERE m.timestamp >= $1';
+    query += ' AND m.timestamp >= $2';
     values.push(new Date(since));
   }
   
@@ -179,15 +177,15 @@ async function getMeals({ since } = {}) {
   }));
 }
 
-async function updateMeal(id, { name, foods }) {
+async function updateMeal({ userId, id, name, foods }) {
   // Update meal name if provided
   if (name !== undefined) {
-    await pool.query('UPDATE meals SET name = $1 WHERE id = $2', [name, id]);
+    await pool.query('UPDATE meals SET name = $1 WHERE id = $2 AND user_id = $3', [name, id, userId]);
   }
   
   // Delete old foods and insert new ones if provided
   if (foods !== undefined) {
-    await pool.query('DELETE FROM meal_foods WHERE meal_id = $1', [id]);
+    await pool.query('DELETE FROM meal_foods WHERE meal_id = $1 AND meal_id IN (SELECT id FROM meals WHERE user_id = $2)', [id, userId]);
     for (const food of foods) {
       await pool.query(
         'INSERT INTO meal_foods (meal_id, food_name, calories, protein, carbs, fat) VALUES ($1, $2, $3, $4, $5, $6)',
@@ -203,9 +201,9 @@ async function updateMeal(id, { name, foods }) {
             FILTER (WHERE mf.id IS NOT NULL) as foods
      FROM meals m
      LEFT JOIN meal_foods mf ON m.id = mf.meal_id
-     WHERE m.id = $1
+     WHERE m.id = $1 AND m.user_id = $2
      GROUP BY m.id, m.name, m.timestamp`,
-    [id]
+    [id, userId]
   );
   
   if (result.rows.length === 0) {
@@ -220,8 +218,8 @@ async function updateMeal(id, { name, foods }) {
   };
 }
 
-async function deleteMeal(id) {
-  const result = await pool.query('DELETE FROM meals WHERE id = $1 RETURNING *', [id]);
+async function deleteMeal({ userId, id }) {
+  const result = await pool.query('DELETE FROM meals WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
     throw new Error('Meal not found');
   }
@@ -229,21 +227,21 @@ async function deleteMeal(id) {
 }
 
 // Food entry functions
-async function addFoodEntry({ foodName, calories, protein, carbs, fat, timestamp }) {
+async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, timestamp }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
-    'INSERT INTO food_entries (food_name, calories, protein, carbs, fat, timestamp) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, food_name as "foodName", calories, protein, carbs, fat, timestamp',
-    [foodName, calories, protein, carbs, fat, ts]
+    'INSERT INTO food_entries (user_id, food_name, calories, protein, carbs, fat, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, food_name as "foodName", calories, protein, carbs, fat, timestamp',
+    [userId, foodName, calories, protein, carbs, fat, ts]
   );
   return result.rows[0];
 }
 
-async function getFoodEntries({ since } = {}) {
-  let query = 'SELECT id, food_name as "foodName", calories, protein, carbs, fat, timestamp FROM food_entries';
-  const values = [];
+async function getFoodEntries({ userId, since } = {}) {
+  let query = 'SELECT id, food_name as "foodName", calories, protein, carbs, fat, timestamp FROM food_entries WHERE user_id = $1';
+  const values = [userId];
   
   if (since) {
-    query += ' WHERE timestamp >= $1';
+    query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
   
@@ -252,15 +250,15 @@ async function getFoodEntries({ since } = {}) {
   return result.rows;
 }
 
-async function deleteFoodEntry(id) {
-  const result = await pool.query('DELETE FROM food_entries WHERE id = $1 RETURNING *', [id]);
+async function deleteFoodEntry({ userId, id }) {
+  const result = await pool.query('DELETE FROM food_entries WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
     throw new Error('Food entry not found');
   }
   return { message: 'Food entry deleted', entry: result.rows[0] };
 }
 
-async function getMacroSummary(period = 'daily') {
+async function getMacroSummary({ userId, period = 'daily' } = {}) {
   const now = new Date();
   let start;
 
@@ -285,12 +283,11 @@ async function getMacroSummary(period = 'daily') {
        COUNT(DISTINCT m.id)::INTEGER as entry_count
      FROM meals m
      LEFT JOIN meal_foods mf ON m.id = mf.meal_id
-     WHERE m.timestamp >= $1`,
-    [start]
+     WHERE m.user_id = $1 AND m.timestamp >= $2`,
+    [userId, start]
   );
 
   const totals = result.rows[0];
-  console.log('getMacroSummary - period:', period, 'start:', start, 'totals:', totals);
 
   // For weekly, calculate daily averages
   if (period === 'weekly') {

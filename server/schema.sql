@@ -1,6 +1,7 @@
 -- Water tracking
 CREATE TABLE IF NOT EXISTS water_entries (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   volume_ml INTEGER NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -8,6 +9,7 @@ CREATE TABLE IF NOT EXISTS water_entries (
 -- Meals and food tracking
 CREATE TABLE IF NOT EXISTS meals (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   name VARCHAR(255) NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -24,6 +26,7 @@ CREATE TABLE IF NOT EXISTS meal_foods (
 
 CREATE TABLE IF NOT EXISTS food_entries (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   food_name VARCHAR(255) NOT NULL,
   calories INTEGER,
   protein FLOAT,
@@ -35,6 +38,7 @@ CREATE TABLE IF NOT EXISTS food_entries (
 -- Fitness splits
 CREATE TABLE IF NOT EXISTS splits (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   days_count INTEGER DEFAULT 1,
@@ -69,6 +73,7 @@ CREATE TABLE IF NOT EXISTS cardio (
 -- Productivity tasks
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   title VARCHAR(256) NOT NULL,
   notes TEXT,
   done BOOLEAN DEFAULT FALSE,
@@ -79,6 +84,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 -- Productivity calendar events
 CREATE TABLE IF NOT EXISTS events (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER,
   title VARCHAR(256) NOT NULL,
   description TEXT,
   event_date DATE NOT NULL,
@@ -87,13 +93,27 @@ CREATE TABLE IF NOT EXISTS events (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Backfill safety for existing databases (idempotent)
+ALTER TABLE water_entries ADD COLUMN IF NOT EXISTS user_id INTEGER;
+ALTER TABLE meals ADD COLUMN IF NOT EXISTS user_id INTEGER;
+ALTER TABLE food_entries ADD COLUMN IF NOT EXISTS user_id INTEGER;
+ALTER TABLE splits ADD COLUMN IF NOT EXISTS user_id INTEGER;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id INTEGER;
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_water_entries_timestamp ON water_entries(timestamp);
+CREATE INDEX IF NOT EXISTS idx_water_entries_user_timestamp ON water_entries(user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_meals_timestamp ON meals(timestamp);
+CREATE INDEX IF NOT EXISTS idx_meals_user_timestamp ON meals(user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_food_entries_timestamp ON food_entries(timestamp);
+CREATE INDEX IF NOT EXISTS idx_food_entries_user_timestamp ON food_entries(user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_splits_created_at ON splits(created_at);
+CREATE INDEX IF NOT EXISTS idx_splits_user_created_at ON splits(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_created_at ON tasks(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(event_date, event_time);
+CREATE INDEX IF NOT EXISTS idx_events_user_date_time ON events(user_id, event_date, event_time);
 
 -- Accounts and sessions
 CREATE TABLE IF NOT EXISTS users (

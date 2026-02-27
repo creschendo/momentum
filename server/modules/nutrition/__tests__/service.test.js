@@ -18,7 +18,7 @@ describe('nutrition service (water)', () => {
       rows: [{ id: 1, volumeMl: 300, timestamp: new Date().toISOString() }]
     });
 
-    const entry = await service.addWaterEntry({ volumeMl: 300 });
+    const entry = await service.addWaterEntry({ userId: 1, volumeMl: 300 });
     expect(entry).toHaveProperty('id');
     expect(entry).toHaveProperty('volumeMl', 300);
     expect(entry).toHaveProperty('timestamp');
@@ -30,9 +30,9 @@ describe('nutrition service (water)', () => {
       .mockResolvedValueOnce({ rows: [{ id: 11, volumeMl: 500, timestamp: new Date().toISOString() }] })
       .mockResolvedValueOnce({ rows: [{ total: 700 }] });
 
-    await service.addWaterEntry({ volumeMl: 200 });
-    await service.addWaterEntry({ volumeMl: 500 });
-    const summary = await service.sumForPeriod('daily');
+    await service.addWaterEntry({ userId: 1, volumeMl: 200 });
+    await service.addWaterEntry({ userId: 1, volumeMl: 500 });
+    const summary = await service.sumForPeriod({ userId: 1, period: 'daily' });
     expect(summary).toHaveProperty('period', 'daily');
     expect(summary).toHaveProperty('totalMl');
     expect(typeof summary.totalMl).toBe('number');
