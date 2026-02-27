@@ -9,15 +9,17 @@ import nutrition from './modules/nutrition';
 import fitness from './modules/fitness';
 import productivity from './modules/productivity';
 import pomodoro from './modules/pomodoro';
+import sleep from './modules/sleep';
 import NutritionModule from './modules/nutrition/NutritionModule';
 import FitnessModule from './modules/fitness/FitnessModule';
 import ProductivityModule from './modules/productivity/ProductivityModule';
 import PomodoroModule from './modules/pomodoro/PomodoroModule';
+import SleepModule from './modules/sleep/SleepModule';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { fadeIn, fadeInUp, popoverTransition, staggerContainer, staggerItem } from './motion/presets';
 
-const MODULES = [nutrition, productivity, fitness, pomodoro];
+const MODULES = [nutrition, productivity, fitness, sleep, pomodoro];
 
 function getThemeIcon(themeName, color) {
   switch (themeName) {
@@ -404,6 +406,8 @@ function AppContent() {
       return <FitnessModule />;
     } else if (moduleKey === 'productivity') {
       return <ProductivityModule />;
+    } else if (moduleKey === 'sleep') {
+      return <SleepModule />;
     } else if (moduleKey === 'pomodoro') {
       return <PomodoroModule />;
     }

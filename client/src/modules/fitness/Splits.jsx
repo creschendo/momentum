@@ -479,7 +479,7 @@ export default function Splits() {
                     setDeleteConfirmSplitId(split.id);
                   }}
                   style={{
-                    padding: '6px 12px',
+                    padding: '6px 8px',
                     backgroundColor: theme.error,
                     color: 'white',
                     border: 'none',
@@ -490,8 +490,9 @@ export default function Splits() {
                   }}
                   onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                   onMouseLeave={(e) => e.target.style.opacity = '1'}
+                  aria-label="Delete split"
                 >
-                  Delete Split
+                  🗑
                 </button>
 
                 {deleteConfirmSplitId === split.id && (
@@ -540,7 +541,7 @@ export default function Splits() {
                           setDeleteConfirmSplitId(null);
                         }}
                         style={{
-                          padding: '6px 8px',
+                          padding: '6px 10px',
                           backgroundColor: theme.error,
                           color: 'white',
                           border: 'none',
@@ -548,8 +549,9 @@ export default function Splits() {
                           fontSize: 12,
                           cursor: 'pointer'
                         }}
+                        aria-label="Confirm delete split"
                       >
-                        Delete
+                        🗑
                       </button>
                     </div>
                   </div>
@@ -776,7 +778,7 @@ export default function Splits() {
                                 handleDeleteDay(split.id, day.id);
                               }}
                               style={{
-                                padding: '4px 8px',
+                                padding: '4px 10px',
                                 backgroundColor: theme.error,
                                 color: 'white',
                                 border: 'none',
@@ -784,8 +786,9 @@ export default function Splits() {
                                 cursor: 'pointer',
                                 fontSize: 11
                               }}
+                              aria-label="Confirm delete day"
                             >
-                              Delete
+                              🗑
                             </button>
                           </div>
                         </div>
@@ -987,7 +990,7 @@ export default function Splits() {
                                           <button
                                             onClick={() => handleDeleteLift(split.id, day.id, lift.id)}
                                             style={{
-                                              padding: '4px 10px',
+                                              padding: '4px 8px',
                                               backgroundColor: theme.error,
                                               color: 'white',
                                               border: 'none',
@@ -998,8 +1001,9 @@ export default function Splits() {
                                             }}
                                             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                                             onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                            aria-label="Delete lift"
                                           >
-                                            Delete
+                                            🗑
                                           </button>
                                         </div>
                                       </div>
@@ -1294,7 +1298,7 @@ export default function Splits() {
                                           <button
                                             onClick={() => handleDeleteCardio(split.id, day.id, cardio.id)}
                                             style={{
-                                              padding: '4px 10px',
+                                              padding: '4px 8px',
                                               backgroundColor: theme.error,
                                               color: 'white',
                                               border: 'none',
@@ -1305,8 +1309,9 @@ export default function Splits() {
                                             }}
                                             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
                                             onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                            aria-label="Delete cardio"
                                           >
-                                            Delete
+                                            🗑
                                           </button>
                                         </div>
                                       </div>

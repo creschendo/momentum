@@ -134,3 +134,17 @@ CREATE TABLE IF NOT EXISTS weight_entries (
 
 CREATE INDEX IF NOT EXISTS idx_weight_entries_user_date ON weight_entries(user_id, entry_date);
 CREATE INDEX IF NOT EXISTS idx_weight_entries_created_at ON weight_entries(created_at);
+
+-- Sleep tracking
+CREATE TABLE IF NOT EXISTS sleep_sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  start_time TIMESTAMP NOT NULL,
+  end_time TIMESTAMP NOT NULL,
+  quality SMALLINT NOT NULL DEFAULT 3 CHECK (quality >= 1 AND quality <= 5),
+  notes VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sleep_sessions_user_start ON sleep_sessions(user_id, start_time DESC);
+CREATE INDEX IF NOT EXISTS idx_sleep_sessions_created_at ON sleep_sessions(created_at);
