@@ -12,7 +12,7 @@ router.get('/status', (req, res) => {
 router.get('/events', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const list = await service.listEvents({ startDate, endDate });
+    const list = await service.listEvents({ userId: req.user.id, startDate, endDate });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -34,6 +34,7 @@ router.post('/events', async (req, res) => {
     }
 
     const created = await service.createEvent({
+      userId: req.user.id,
       title,
       dateKey: String(dateKey),
       time: String(time),
@@ -58,7 +59,7 @@ router.patch('/events/:id', async (req, res) => {
       return res.status(400).json({ error: 'time must be HH:MM' });
     }
 
-    const updated = await service.updateEvent(id, { title, dateKey, time, description });
+    const updated = await service.updateEvent({ userId: req.user.id, id, patch: { title, dateKey, time, description } });
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
@@ -70,7 +71,7 @@ router.patch('/events/:id', async (req, res) => {
 router.delete('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const ok = await service.removeEvent(id);
+    const ok = await service.removeEvent({ userId: req.user.id, id });
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {
@@ -81,7 +82,7 @@ router.delete('/events/:id', async (req, res) => {
 // GET /api/productivity/tasks
 router.get('/tasks', async (req, res) => {
   try {
-    const list = await service.listTasks();
+    const list = await service.listTasks({ userId: req.user.id });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -95,7 +96,7 @@ router.post('/tasks', async (req, res) => {
     if (!title || String(title).trim().length === 0) {
       return res.status(400).json({ error: 'title is required' });
     }
-    const created = await service.createTask({ title, notes });
+    const created = await service.createTask({ userId: req.user.id, title, notes });
     res.status(201).json(created);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -106,7 +107,7 @@ router.post('/tasks', async (req, res) => {
 router.patch('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await service.updateTask(id, req.body || {});
+    const updated = await service.updateTask({ userId: req.user.id, id, patch: req.body || {} });
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
@@ -118,7 +119,7 @@ router.patch('/tasks/:id', async (req, res) => {
 router.delete('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const ok = await service.removeTask(id);
+    const ok = await service.removeTask({ userId: req.user.id, id });
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {

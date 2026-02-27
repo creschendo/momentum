@@ -17,7 +17,7 @@ router.post('/water', async (req, res) => {
     if (!volumeMl || isNaN(volumeMl) || Number(volumeMl) <= 0) {
       return res.status(400).json({ error: 'volumeMl must be a positive number' });
     }
-    const entry = await service.addWaterEntry({ volumeMl: Number(volumeMl), timestamp });
+    const entry = await service.addWaterEntry({ userId: req.user.id, volumeMl: Number(volumeMl), timestamp });
     res.status(201).json(entry);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -29,7 +29,7 @@ router.post('/water', async (req, res) => {
 router.get('/water/entries', async (req, res) => {
   const { since } = req.query;
   try {
-    const list = await service.listEntries({ since });
+    const list = await service.listEntries({ userId: req.user.id, since });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -40,7 +40,7 @@ router.get('/water/entries', async (req, res) => {
 router.get('/water/summary', async (req, res) => {
   const { period = 'daily' } = req.query;
   try {
-    const summary = await service.sumForPeriod(period);
+    const summary = await service.sumForPeriod({ userId: req.user.id, period });
     res.json(summary);
   } catch (err) {
     res.status(400).json({ error: String(err) });
@@ -50,7 +50,7 @@ router.get('/water/summary', async (req, res) => {
 // DELETE /api/nutrition/water/reset
 router.delete('/water/reset', async (req, res) => {
   try {
-    const result = await service.resetWaterEntries();
+    const result = await service.resetWaterEntries({ userId: req.user.id });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -136,7 +136,7 @@ router.get('/search', async (req, res) => {
 router.post('/foods', async (req, res) => {
   const { foodName, calories, protein, carbs, fat, timestamp } = req.body;
   try {
-    const entry = await service.addFoodEntry({ foodName, calories, protein, carbs, fat, timestamp });
+    const entry = await service.addFoodEntry({ userId: req.user.id, foodName, calories, protein, carbs, fat, timestamp });
     res.status(201).json(entry);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -147,7 +147,7 @@ router.post('/foods', async (req, res) => {
 router.get('/foods', async (req, res) => {
   const { since } = req.query;
   try {
-    const entries = await service.getFoodEntries({ since });
+    const entries = await service.getFoodEntries({ userId: req.user.id, since });
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -158,7 +158,7 @@ router.get('/foods', async (req, res) => {
 router.delete('/foods/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await service.deleteFoodEntry(id);
+    const result = await service.deleteFoodEntry({ userId: req.user.id, id });
     res.json(result);
   } catch (err) {
     res.status(404).json({ error: String(err) });
@@ -169,7 +169,7 @@ router.delete('/foods/:id', async (req, res) => {
 router.get('/foods/summary', async (req, res) => {
   const { period = 'daily' } = req.query;
   try {
-    const summary = await service.getMacroSummary(period);
+    const summary = await service.getMacroSummary({ userId: req.user.id, period });
     res.json(summary);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -184,7 +184,7 @@ router.post('/meals', async (req, res) => {
     if (!name || !foods || !Array.isArray(foods)) {
       return res.status(400).json({ error: 'name and foods array required' });
     }
-    const meal = await service.addMeal({ name, foods, timestamp });
+    const meal = await service.addMeal({ userId: req.user.id, name, foods, timestamp });
     res.status(201).json(meal);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -195,7 +195,7 @@ router.post('/meals', async (req, res) => {
 router.get('/meals', async (req, res) => {
   const { since } = req.query;
   try {
-    const meals = await service.getMeals({ since });
+    const meals = await service.getMeals({ userId: req.user.id, since });
     res.json(meals);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -207,7 +207,7 @@ router.put('/meals/:id', async (req, res) => {
   const { id } = req.params;
   const { name, foods } = req.body;
   try {
-    const updated = await service.updateMeal(id, { name, foods });
+    const updated = await service.updateMeal({ userId: req.user.id, id, name, foods });
     res.json(updated);
   } catch (err) {
     res.status(404).json({ error: String(err) });
@@ -218,7 +218,7 @@ router.put('/meals/:id', async (req, res) => {
 router.delete('/meals/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await service.deleteMeal(id);
+    const result = await service.deleteMeal({ userId: req.user.id, id });
     res.json(result);
   } catch (err) {
     res.status(404).json({ error: String(err) });

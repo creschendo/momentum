@@ -4,6 +4,8 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import authRouter from './modules/auth/index.js';
@@ -18,17 +20,46 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const DEFAULT_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const resolvedAllowedOrigins = allowedOrigins.length > 0 ? allowedOrigins : DEFAULT_ALLOWED_ORIGINS;
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 25 : 250,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts, please try again later.' }
+});
+
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || resolvedAllowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  },
+  credentials: true
+}));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hello from Express!' });
 });
 
 // Module routes (modular architecture)
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/nutrition', requireAuth, nutritionRouter);
 app.use('/api/fitness', requireAuth, fitnessRouter);
 app.use('/api/productivity', requireAuth, productivityRouter);
