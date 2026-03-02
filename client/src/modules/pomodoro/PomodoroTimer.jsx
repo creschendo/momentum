@@ -9,10 +9,13 @@ function formatTime(totalSeconds) {
 
 export default function PomodoroTimer() {
   const { theme, currentTheme } = useTheme();
-  const hoverTint = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(62, 207, 142, 0.08)';
-  const hoverGlow = currentTheme === 'cove' ? '0 0 0 2px rgba(255, 255, 255, 0.45)' : '0 0 0 2px rgba(62, 207, 142, 0.35)';
+  const hoverTint = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.08)' : `${theme.primary}1A`;
+  const hoverGlow = `0 0 0 2px ${theme.primary}59`;
+  const ringColor = '#3ecf8e';
   const [workMinutes, setWorkMinutes] = useState(25);
   const [breakMinutes, setBreakMinutes] = useState(5);
+  const [workInput, setWorkInput] = useState('25');
+  const [breakInput, setBreakInput] = useState('5');
   const [mode, setMode] = useState('work');
   const [isRunning, setIsRunning] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(workMinutes * 60);
@@ -21,6 +24,13 @@ export default function PomodoroTimer() {
     () => (mode === 'work' ? workMinutes : breakMinutes) * 60,
     [mode, workMinutes, breakMinutes]
   );
+
+  const ringRadius = 64;
+  const ringStroke = 8;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const remainingProgress = totalSeconds > 0 ? remainingSeconds / totalSeconds : 0;
+  const clampedRemainingProgress = Math.max(0, Math.min(1, remainingProgress));
+  const ringDashOffset = ringCircumference * (1 - clampedRemainingProgress);
 
   useEffect(() => {
     if (!isRunning) {
@@ -51,6 +61,38 @@ export default function PomodoroTimer() {
     setRemainingSeconds(totalSeconds);
   };
 
+  const clampMinutes = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  const commitWorkInput = () => {
+    if (workInput.trim() === '') {
+      setWorkInput(String(workMinutes));
+      return;
+    }
+    const parsed = Number(workInput);
+    if (!Number.isFinite(parsed)) {
+      setWorkInput(String(workMinutes));
+      return;
+    }
+    const clamped = clampMinutes(parsed, 1, 120);
+    setWorkMinutes(clamped);
+    setWorkInput(String(clamped));
+  };
+
+  const commitBreakInput = () => {
+    if (breakInput.trim() === '') {
+      setBreakInput(String(breakMinutes));
+      return;
+    }
+    const parsed = Number(breakInput);
+    if (!Number.isFinite(parsed)) {
+      setBreakInput(String(breakMinutes));
+      return;
+    }
+    const clamped = clampMinutes(parsed, 1, 60);
+    setBreakMinutes(clamped);
+    setBreakInput(String(clamped));
+  };
+
   
 
   return (
@@ -64,15 +106,66 @@ export default function PomodoroTimer() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{
-          fontSize: 36,
-          fontWeight: 700,
-          color: theme.text,
-          padding: '12px 16px',
-          borderRadius: 8,
+          width: 170,
+          height: 170,
+          marginLeft: 'clamp(12px, 4vw, 64px)',
+          position: 'relative',
+          display: 'grid',
+          placeItems: 'center',
+          borderRadius: '50%',
           backgroundColor: theme.bg,
-          border: `1px solid ${theme.border}`
+          border: `1px solid ${theme.border}`,
+          boxShadow: `0 8px 24px ${theme.bg}AA, inset 0 0 0 1px ${theme.border}`
         }}>
-          {formatTime(remainingSeconds)}
+          <svg width="170" height="170" viewBox="0 0 170 170" style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx="85"
+              cy="85"
+              r={ringRadius}
+              fill="none"
+              stroke={theme.border}
+              strokeWidth={ringStroke}
+              opacity={0.7}
+            />
+            <g transform="translate(170 0) scale(-1 1)">
+              <circle
+                cx="85"
+                cy="85"
+                r={ringRadius}
+                fill="none"
+                stroke={ringColor}
+                strokeWidth={ringStroke}
+                strokeLinecap={clampedRemainingProgress > 0 ? 'round' : 'butt'}
+                strokeDasharray={ringCircumference}
+                strokeDashoffset={ringDashOffset}
+                style={{
+                  transition: 'stroke-dashoffset 0.35s linear',
+                  filter: `drop-shadow(0 0 8px ${ringColor}99)`
+                }}
+              />
+            </g>
+          </svg>
+          <div style={{
+            position: 'absolute',
+            fontSize: 32,
+            fontWeight: 700,
+            color: theme.text,
+            padding: '4px 8px',
+            minWidth: 108,
+            textAlign: 'center'
+          }}>
+            {formatTime(remainingSeconds)}
+            <div style={{
+              marginTop: 3,
+              fontSize: 10,
+              letterSpacing: 1,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              color: theme.textMuted
+            }}>
+              {mode}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -139,11 +232,25 @@ export default function PomodoroTimer() {
           </label>
           <input
             className="no-spin"
-            type="number"
-            min={1}
-            max={120}
-            value={workMinutes}
-            onChange={(e) => setWorkMinutes(Number(e.target.value))}
+            type="text"
+            inputMode="numeric"
+            value={workInput}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (!/^\d*$/.test(next)) return;
+              setWorkInput(next);
+              if (next === '') return;
+              const parsed = Number(next);
+              if (parsed >= 1 && parsed <= 120) {
+                setWorkMinutes(parsed);
+              }
+            }}
+            onBlur={commitWorkInput}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                commitWorkInput();
+              }
+            }}
             style={{
               width: '80%',
               padding: '8px 12px',
@@ -162,11 +269,25 @@ export default function PomodoroTimer() {
           </label>
           <input
             className="no-spin"
-            type="number"
-            min={1}
-            max={60}
-            value={breakMinutes}
-            onChange={(e) => setBreakMinutes(Number(e.target.value))}
+            type="text"
+            inputMode="numeric"
+            value={breakInput}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (!/^\d*$/.test(next)) return;
+              setBreakInput(next);
+              if (next === '') return;
+              const parsed = Number(next);
+              if (parsed >= 1 && parsed <= 60) {
+                setBreakMinutes(parsed);
+              }
+            }}
+            onBlur={commitBreakInput}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                commitBreakInput();
+              }
+            }}
             style={{
               width: '80%',
               padding: '8px 12px',
