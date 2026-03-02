@@ -23,7 +23,9 @@ export async function getWaterSummary({ period = 'daily' } = {}) {
 }
 
 export async function resetWaterEntries() {
-  const res = await fetch('/api/nutrition/water/reset', { method: 'DELETE' });
+  const res = await fetch('/api/nutrition/water/reset', { 
+    method: 'DELETE' 
+  });
   if (!res.ok) throw new Error('Failed to reset water entries');
   return res.json();
 }
