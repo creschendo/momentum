@@ -10,6 +10,7 @@
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "start": "node server/index.js",
     "test": "vitest",
+    "test:run": "vitest run",
     "db:init": "npm --prefix server run db:init",
     "seed:user": "npm --prefix server run seed:user",
     "auth:setup": "npm --prefix server run auth:setup"
