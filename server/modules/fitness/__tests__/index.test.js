@@ -1,20 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from '../index.js';
-
-function getRouteMethodsByPath(expressRouter) {
-  return (expressRouter.stack || [])
-    .filter((layer) => layer.route)
-    .map((layer) => ({
-      path: layer.route.path,
-      methods: Object.keys(layer.route.methods || {})
-    }));
-}
-
-function hasRoute(routes, path, method) {
-  return routes.some((route) => route.path === path && route.methods.includes(method));
-}
+import * as service from '../service.js';
+import {
+  getRouteMethodsByPath,
+  hasRoute,
+  getRouteHandler,
+  runRoute
+} from '../../__tests__/routerTestUtils.js';
 
 describe('fitness router scaffolding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('registers status and split routes', () => {
     const routes = getRouteMethodsByPath(router);
 
@@ -27,7 +25,56 @@ describe('fitness router scaffolding', () => {
     expect(hasRoute(routes, '/splits/:splitId/days', 'post')).toBe(true);
   });
 
-  it.todo('returns module status payload from /status');
-  it.todo('creates a split via POST /splits');
-  it.todo('adds and removes day/lift/cardio resources');
+  it('returns module status payload from /status', async () => {
+    const statusHandler = getRouteHandler(router, 'get', '/status');
+    const res = await runRoute(statusHandler, { user: { id: 1 } });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ module: 'fitness', status: 'ok', info: 'Fitness module ready' });
+  });
+
+  it('creates a split via POST /splits', async () => {
+    vi.spyOn(service, 'addSplit').mockResolvedValueOnce({ id: 1, name: 'Push Pull Legs', daysCount: 3, days: [] });
+
+    const createHandler = getRouteHandler(router, 'post', '/splits');
+    const res = await runRoute(createHandler, {
+      user: { id: 5 },
+      body: { title: 'Push Pull Legs', days: 3 }
+    });
+
+    expect(service.addSplit).toHaveBeenCalledWith({ userId: 5, name: 'Push Pull Legs', daysCount: 3 });
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toMatchObject({ id: 1, name: 'Push Pull Legs' });
+  });
+
+  it('adds and removes day/lift/cardio resources', async () => {
+    vi.spyOn(service, 'addDayToSplit').mockResolvedValueOnce({ id: 10, name: 'Leg Day', lifts: [], cardio: [] });
+    vi.spyOn(service, 'removeLiftFromDay').mockResolvedValueOnce(true);
+    vi.spyOn(service, 'removeCardioFromDay').mockResolvedValueOnce(true);
+
+    const addDayHandler = getRouteHandler(router, 'post', '/splits/:splitId/days');
+    const addDayRes = await runRoute(addDayHandler, {
+      user: { id: 5 },
+      params: { splitId: '3' },
+      body: { name: 'Leg Day' }
+    });
+    expect(addDayRes.statusCode).toBe(201);
+    expect(addDayRes.body).toMatchObject({ id: 10, name: 'Leg Day' });
+
+    const deleteLiftHandler = getRouteHandler(router, 'delete', '/splits/:splitId/days/:dayId/lifts/:liftId');
+    const deleteLiftRes = await runRoute(deleteLiftHandler, {
+      user: { id: 5 },
+      params: { splitId: '3', dayId: '10', liftId: '77' }
+    });
+    expect(deleteLiftRes.statusCode).toBe(200);
+    expect(deleteLiftRes.body).toEqual({ message: 'Lift deleted' });
+
+    const deleteCardioHandler = getRouteHandler(router, 'delete', '/splits/:splitId/days/:dayId/cardio/:cardioId');
+    const deleteCardioRes = await runRoute(deleteCardioHandler, {
+      user: { id: 5 },
+      params: { splitId: '3', dayId: '10', cardioId: '11' }
+    });
+    expect(deleteCardioRes.statusCode).toBe(200);
+    expect(deleteCardioRes.body).toEqual({ message: 'Cardio session deleted' });
+  });
 });

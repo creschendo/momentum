@@ -112,6 +112,8 @@ Local scripts
 - `npm run dev` — runs client + server concurrently
 - `npm --prefix server run dev` — server only (nodemon)
 - `npm --prefix client run dev` — client only (vite)
+- `npm run test` — run Vitest in watch mode
+- `npm run test:run` — run full test suite once (CI-friendly)
 - `npm run start` — start server (serves built client if present)
 - `npm run db:init` (root forwards to `server`) — applies `server/schema.sql`
 - `npm run seed:user` (root forwards to `server`) — seed test user

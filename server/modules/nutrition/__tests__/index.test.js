@@ -1,20 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from '../index.js';
-
-function getRouteMethodsByPath(expressRouter) {
-  return (expressRouter.stack || [])
-    .filter((layer) => layer.route)
-    .map((layer) => ({
-      path: layer.route.path,
-      methods: Object.keys(layer.route.methods || {})
-    }));
-}
-
-function hasRoute(routes, path, method) {
-  return routes.some((route) => route.path === path && route.methods.includes(method));
-}
+import service from '../service.js';
+import {
+  getRouteMethodsByPath,
+  hasRoute,
+  getRouteHandler,
+  runRoute
+} from '../../__tests__/routerTestUtils.js';
 
 describe('nutrition router scaffolding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('registers core nutrition routes', () => {
     const routes = getRouteMethodsByPath(router);
 
@@ -26,6 +24,28 @@ describe('nutrition router scaffolding', () => {
     expect(hasRoute(routes, '/meals', 'post')).toBe(true);
   });
 
-  it.todo('validates bad water input with 400 response');
-  it.todo('returns food summary from /foods/summary');
+  it('validates bad water input with 400 response', async () => {
+    const waterHandler = getRouteHandler(router, 'post', '/water');
+    const res = await runRoute(waterHandler, {
+      user: { id: 1 },
+      body: { volumeMl: 0 }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'volumeMl must be a positive number' });
+  });
+
+  it('returns food summary from /foods/summary', async () => {
+    vi.spyOn(service, 'getMacroSummary').mockResolvedValueOnce({ period: 'daily', calories: 1000 });
+
+    const summaryHandler = getRouteHandler(router, 'get', '/foods/summary');
+    const res = await runRoute(summaryHandler, {
+      user: { id: 99 },
+      query: { period: 'daily' }
+    });
+
+    expect(service.getMacroSummary).toHaveBeenCalledWith({ userId: 99, period: 'daily' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ period: 'daily', calories: 1000 });
+  });
 });

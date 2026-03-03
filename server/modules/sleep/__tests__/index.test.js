@@ -1,20 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import router from '../index.js';
-
-function getRouteMethodsByPath(expressRouter) {
-  return (expressRouter.stack || [])
-    .filter((layer) => layer.route)
-    .map((layer) => ({
-      path: layer.route.path,
-      methods: Object.keys(layer.route.methods || {})
-    }));
-}
-
-function hasRoute(routes, path, method) {
-  return routes.some((route) => route.path === path && route.methods.includes(method));
-}
+import service from '../service.js';
+import {
+  getRouteMethodsByPath,
+  hasRoute,
+  getRouteHandler,
+  runRoute
+} from '../../__tests__/routerTestUtils.js';
 
 describe('sleep router scaffolding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('registers status, sessions, and summary routes', () => {
     const routes = getRouteMethodsByPath(router);
 
@@ -25,6 +23,37 @@ describe('sleep router scaffolding', () => {
     expect(hasRoute(routes, '/summary', 'get')).toBe(true);
   });
 
-  it.todo('rejects invalid start/end timestamps for POST /sessions');
-  it.todo('returns sleep summary payload from /summary');
+  it('rejects invalid start/end timestamps for POST /sessions', async () => {
+    const createHandler = getRouteHandler(router, 'post', '/sessions');
+    const res = await runRoute(createHandler, {
+      user: { id: 1 },
+      body: {
+        startTime: '2026-03-02T08:00:00.000Z',
+        endTime: '2026-03-02T06:00:00.000Z'
+      }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'endTime must be after startTime' });
+  });
+
+  it('returns sleep summary payload from /summary', async () => {
+    vi.spyOn(service, 'getSleepSummary').mockResolvedValueOnce({
+      days: 7,
+      count: 3,
+      avgDurationHours: 7.25,
+      avgQuality: 4.2,
+      latest: null
+    });
+
+    const summaryHandler = getRouteHandler(router, 'get', '/summary');
+    const res = await runRoute(summaryHandler, {
+      user: { id: 8 },
+      query: { days: '7' }
+    });
+
+    expect(service.getSleepSummary).toHaveBeenCalledWith({ userId: 8, days: 7 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ count: 3, avgDurationHours: 7.25 });
+  });
 });
