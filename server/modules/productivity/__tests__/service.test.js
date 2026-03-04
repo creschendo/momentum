@@ -44,4 +44,19 @@ describe('productivity service (tasks)', () => {
     const after = await service.getTask({ userId: 1, id: t2.id });
     expect(after).toBeNull();
   });
+
+  it('returns null when updateTask target does not exist', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const updated = await service.updateTask({ userId: 1, id: 777, patch: { done: true } });
+    expect(updated).toBeNull();
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns false when removeTask does not delete a row', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+    const ok = await service.removeTask({ userId: 1, id: 777 });
+    expect(ok).toBe(false);
+  });
 });

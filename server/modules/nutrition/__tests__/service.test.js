@@ -38,4 +38,35 @@ describe('nutrition service (water)', () => {
     expect(typeof summary.totalMl).toBe('number');
     expect(summary.totalMl).toBeGreaterThanOrEqual(700);
   });
+
+  it('throws for unsupported period values', async () => {
+    await expect(service.sumForPeriod({ userId: 1, period: 'yearly' })).rejects.toThrow('invalid period');
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('returns weight trend stats and enforces minimum day window', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        { id: 1, weightKg: 80.5, entryDate: '2026-02-20', note: '' },
+        { id: 2, weightKg: 79.8, entryDate: '2026-02-26', note: '' }
+      ]
+    });
+
+    const trend = await service.getWeightTrend({ userId: 2, days: 1 });
+    expect(trend.days).toBe(7);
+    expect(trend.points).toHaveLength(2);
+    expect(trend.stats).toMatchObject({
+      count: 2,
+      latestKg: 79.8,
+      startKg: 80.5,
+      changeKg: -0.7
+    });
+  });
+
+  it('returns false when deleting a non-existent weight entry', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+    const removed = await service.deleteWeightEntry({ userId: 1, id: 999 });
+    expect(removed).toBe(false);
+  });
 });

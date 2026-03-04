@@ -48,4 +48,52 @@ describe('nutrition router scaffolding', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ period: 'daily', calories: 1000 });
   });
+
+  it('returns 400 for invalid water summary period', async () => {
+    vi.spyOn(service, 'sumForPeriod').mockRejectedValueOnce(new Error('invalid period'));
+
+    const summaryHandler = getRouteHandler(router, 'get', '/water/summary');
+    const res = await runRoute(summaryHandler, {
+      user: { id: 7 },
+      query: { period: 'yearly' }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Error: invalid period' });
+  });
+
+  it('returns 400 for meal creation without foods array', async () => {
+    const mealHandler = getRouteHandler(router, 'post', '/meals');
+    const res = await runRoute(mealHandler, {
+      user: { id: 7 },
+      body: { name: 'Lunch', foods: null }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'name and foods array required' });
+  });
+
+  it('returns 404 when deleting a missing weight entry', async () => {
+    vi.spyOn(service, 'deleteWeightEntry').mockResolvedValueOnce(false);
+
+    const deleteHandler = getRouteHandler(router, 'delete', '/weight/:id');
+    const res = await runRoute(deleteHandler, {
+      user: { id: 4 },
+      params: { id: '999' }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'Weight entry not found' });
+  });
+
+  it('requires query text for search endpoint', async () => {
+    const searchHandler = getRouteHandler(router, 'get', '/search');
+    const res = await runRoute(searchHandler, {
+      user: { id: 4 },
+      query: {}
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'query required' });
+  });
 });

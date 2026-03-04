@@ -28,6 +28,7 @@ vi.mock('bcryptjs', () => ({
 describe('auth service scaffolding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.NODE_ENV;
   });
 
   it('exposes expected API', () => {
@@ -48,6 +49,13 @@ describe('auth service scaffolding', () => {
       path: '/'
     });
     expect(typeof options.maxAge).toBe('number');
+  });
+
+  it('enables secure cookies in production mode', () => {
+    process.env.NODE_ENV = 'production';
+
+    const options = getSessionCookieOptions();
+    expect(options.secure).toBe(true);
   });
 
   it('creates a user and returns public profile', async () => {
@@ -98,6 +106,25 @@ describe('auth service scaffolding', () => {
       displayName: 'Known User',
       createdAt: '2026-03-02T00:00:00.000Z'
     });
+  });
+
+  it('returns null when credentials lookup misses user', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const user = await verifyUserCredentials({ email: 'missing@example.com', password: 'password123' });
+    expect(user).toBeNull();
+    expect(bcrypt.compare).not.toHaveBeenCalled();
+  });
+
+  it('returns null when session token is missing', async () => {
+    const user = await getUserFromSessionToken('');
+    expect(user).toBeNull();
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when revoking without token', async () => {
+    await revokeSessionByToken('');
+    expect(pool.query).not.toHaveBeenCalled();
   });
 
   it('creates and revokes session tokens', async () => {

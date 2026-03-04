@@ -77,4 +77,54 @@ describe('productivity router scaffolding', () => {
     expect(patchRes.statusCode).toBe(200);
     expect(patchRes.body).toEqual({ id: 25, title: 'Ship tests', done: true });
   });
+
+  it('validates event payload formatting', async () => {
+    const createHandler = getRouteHandler(router, 'post', '/events');
+    const res = await runRoute(createHandler, {
+      user: { id: 10 },
+      body: { title: 'Planning', dateKey: '2026-03-02', time: '930' }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'time must be HH:MM' });
+    expect(service.createEvent).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when patching an event that does not exist', async () => {
+    vi.spyOn(service, 'updateEvent').mockResolvedValueOnce(null);
+
+    const patchHandler = getRouteHandler(router, 'patch', '/events/:id');
+    const res = await runRoute(patchHandler, {
+      user: { id: 10 },
+      params: { id: '999' },
+      body: { title: 'Missing' }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'not found' });
+  });
+
+  it('returns 204 when deleting an existing task', async () => {
+    vi.spyOn(service, 'removeTask').mockResolvedValueOnce(true);
+
+    const deleteHandler = getRouteHandler(router, 'delete', '/tasks/:id');
+    const res = await runRoute(deleteHandler, {
+      user: { id: 10 },
+      params: { id: '25' }
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(res.ended).toBe(true);
+  });
+
+  it('validates missing task title', async () => {
+    const createTaskHandler = getRouteHandler(router, 'post', '/tasks');
+    const res = await runRoute(createTaskHandler, {
+      user: { id: 10 },
+      body: { title: '   ' }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'title is required' });
+  });
 });

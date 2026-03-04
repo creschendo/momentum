@@ -3,7 +3,8 @@ import pool from '../../../db.js';
 import {
   addSplit,
   deleteSplit,
-  addLiftToDay
+  addLiftToDay,
+  getSplit
 } from '../service.js';
 
 vi.mock('../../../db.js', () => ({
@@ -60,5 +61,30 @@ describe('fitness service', () => {
 
     expect(lift).toBeNull();
     expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a split with zero days when daysCount is negative', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 12,
+          name: 'Minimal Split',
+          description: '',
+          daysCount: 0,
+          createdAt: '2026-03-02T00:00:00.000Z'
+        }
+      ]
+    });
+
+    const split = await addSplit({ userId: 1, name: 'Minimal Split', daysCount: -3 });
+    expect(split.days).toEqual([]);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null when getSplit cannot find a row', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const split = await getSplit({ userId: 1, id: 999 });
+    expect(split).toBeNull();
   });
 });

@@ -39,6 +39,12 @@ describe('client api wrappers', () => {
 
       await expect(authApi.me()).rejects.toMatchObject({ message: 'Unauthorized', status: 401 });
     });
+
+    it('throws login fallback error when error payload is missing', async () => {
+      fetch.mockResolvedValueOnce(makeResponse({ ok: false, textData: '' }));
+
+      await expect(authApi.login('u@example.com', 'bad-password')).rejects.toThrow('Login failed');
+    });
   });
 
   describe('nutrition api', () => {
@@ -63,6 +69,15 @@ describe('client api wrappers', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/nutrition/weight/abc%2F123', { method: 'DELETE' });
       expect(result).toEqual({ ok: true });
+    });
+
+    it('calls base foods endpoint when getFoodEntries has no since filter', async () => {
+      fetch.mockResolvedValueOnce(makeResponse({ jsonData: [] }));
+
+      const result = await nutritionApi.getFoodEntries();
+
+      expect(fetch).toHaveBeenCalledWith('/api/nutrition/foods');
+      expect(result).toEqual([]);
     });
   });
 
@@ -89,6 +104,15 @@ describe('client api wrappers', () => {
       );
       expect(result).toEqual({ id: 10 });
     });
+
+    it('returns parsed split payload for getSplit', async () => {
+      fetch.mockResolvedValueOnce(makeResponse({ jsonData: { id: 55, name: 'Upper Lower' } }));
+
+      const split = await fitnessApi.getSplit(55);
+
+      expect(fetch).toHaveBeenCalledWith('/api/fitness/splits/55');
+      expect(split).toEqual({ id: 55, name: 'Upper Lower' });
+    });
   });
 
   describe('sleep api', () => {
@@ -109,6 +133,20 @@ describe('client api wrappers', () => {
 
       await expect(sleepApi.deleteSleepSession(12)).rejects.toThrow('Failed to delete sleep session');
     });
+
+    it('throws fallback error when createSleepSession fails without JSON payload', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        json: vi.fn().mockRejectedValue(new Error('bad json'))
+      });
+
+      await expect(
+        sleepApi.createSleepSession({
+          startTime: '2026-03-02T22:00:00.000Z',
+          endTime: '2026-03-03T06:00:00.000Z'
+        })
+      ).rejects.toThrow('Failed to create sleep session');
+    });
   });
 
   describe('productivity api', () => {
@@ -123,6 +161,12 @@ describe('client api wrappers', () => {
 
       const result = await productivityApi.deleteTask(1);
       expect(result).toBe(true);
+    });
+
+    it('throws deleteTask error when response is not ok and not 204', async () => {
+      fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+
+      await expect(productivityApi.deleteTask(1)).rejects.toThrow('Failed to delete task');
     });
   });
 });

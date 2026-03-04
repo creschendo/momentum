@@ -77,4 +77,42 @@ describe('fitness router scaffolding', () => {
     expect(deleteCardioRes.statusCode).toBe(200);
     expect(deleteCardioRes.body).toEqual({ message: 'Cardio session deleted' });
   });
+
+  it('returns 400 when split payload is missing required fields', async () => {
+    const createHandler = getRouteHandler(router, 'post', '/splits');
+    const res = await runRoute(createHandler, {
+      user: { id: 5 },
+      body: { title: '', days: null }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Name and days are required' });
+    expect(service.addSplit).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when requested split is missing', async () => {
+    vi.spyOn(service, 'getSplit').mockResolvedValueOnce(null);
+
+    const getHandler = getRouteHandler(router, 'get', '/splits/:id');
+    const res = await runRoute(getHandler, {
+      user: { id: 5 },
+      params: { id: '404' }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'Split not found' });
+  });
+
+  it('returns 404 when deleting a missing split', async () => {
+    vi.spyOn(service, 'deleteSplit').mockResolvedValueOnce(false);
+
+    const deleteHandler = getRouteHandler(router, 'delete', '/splits/:id');
+    const res = await runRoute(deleteHandler, {
+      user: { id: 5 },
+      params: { id: '404' }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'Split not found' });
+  });
 });
