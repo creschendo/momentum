@@ -1,4 +1,25 @@
+// @ts-check
 import axios from 'axios';
+
+/** @typedef {import('../../types').NutritionSearchResult} NutritionSearchResult */
+/** @typedef {import('../../types').NaturalLanguageResult} NaturalLanguageResult */
+/** @typedef {import('../../types').TdeeRequest} TdeeRequest */
+/** @typedef {import('../../types').TdeeResult} TdeeResult */
+
+/**
+ * @typedef {Object} CalorieNinjaItem
+ * @property {string} [name]
+ * @property {number} [serving_size_g]
+ * @property {number} [calories]
+ * @property {number} [protein_g]
+ * @property {number} [carbohydrates_total_g]
+ * @property {number} [fat_total_g]
+ */
+
+/**
+ * @typedef {Object} CalorieNinjaResponse
+ * @property {CalorieNinjaItem[]} [items]
+ */
 
 // CalorieNinjas API wrapper for nutrition data.
 // Requires environment variable:
@@ -17,6 +38,10 @@ function ensureKeys() {
   }
 }
 
+/**
+ * @param {string} query
+ * @returns {Promise<NutritionSearchResult>}
+ */
 async function searchInstant(query) {
   // CalorieNinjas nutrition endpoint: GET /nutrition?query=QUERY
   ensureKeys();
@@ -30,7 +55,8 @@ async function searchInstant(query) {
   
   // Transform CalorieNinjas response to match expected format
   // CalorieNinjas returns: items[] with name, calories, protein_g, carbohydrates_total_g, fat_total_g, serving_size_g
-  const items = res.data.items || [];
+  const payload = /** @type {CalorieNinjaResponse} */ (res.data || {});
+  const items = payload.items || [];
   
   return {
     common: items.map(item => ({
@@ -45,6 +71,10 @@ async function searchInstant(query) {
 }
 
 // CalorieNinjas doesn't have separate endpoints, so these all use the same search
+/**
+ * @param {string} query
+ * @returns {Promise<NaturalLanguageResult>}
+ */
 async function naturalLanguage(query) {
   return searchInstant(query);
 }
@@ -57,6 +87,10 @@ async function naturalLanguage(query) {
 // - height_cm: number (centimeters)
 // - weight_kg: number (kilograms)
 // - activity_level: number (1.375, 1.55, 1.725, or 1.9)
+/**
+ * @param {TdeeRequest} params
+ * @returns {Promise<TdeeResult>}
+ */
 async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level }) {
   // Mifflin-St Jeor equation for BMR
   let bmr;

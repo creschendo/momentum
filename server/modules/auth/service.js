@@ -1,15 +1,27 @@
+// @ts-check
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import pool from '../../db.js';
+
+/** @typedef {import('../../types').User} User */
+/** @typedef {import('../../types').AuthSession} AuthSession */
 
 export const SESSION_COOKIE_NAME = 'momentum_session';
 const SESSION_DURATION_DAYS = 30;
 const PASSWORD_ROUNDS = 10;
 
+/**
+ * @param {unknown} email
+ * @returns {string}
+ */
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+/**
+ * @param {{id:number,email:string,display_name?:string,created_at?:string|Date}|undefined|null} row
+ * @returns {User|null}
+ */
 function toPublicUser(row) {
   if (!row) return null;
   return {
@@ -20,10 +32,17 @@ function toPublicUser(row) {
   };
 }
 
+/**
+ * @param {string} token
+ * @returns {string}
+ */
 function hashSessionToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+/**
+ * @returns {import('express').CookieOptions}
+ */
 export function getSessionCookieOptions() {
   return {
     httpOnly: true,
@@ -34,6 +53,10 @@ export function getSessionCookieOptions() {
   };
 }
 
+/**
+ * @param {{email:string,password:string,displayName?:string}} params
+ * @returns {Promise<User>}
+ */
 export async function createUser({ email, password, displayName }) {
   const normalizedEmail = normalizeEmail(email);
   const passwordHash = await bcrypt.hash(String(password), PASSWORD_ROUNDS);
@@ -46,9 +69,13 @@ export async function createUser({ email, password, displayName }) {
     [normalizedEmail, passwordHash, String(displayName || '').slice(0, 120), now]
   );
 
-  return toPublicUser(result.rows[0]);
+  return /** @type {User} */ (toPublicUser(result.rows[0]));
 }
 
+/**
+ * @param {{email:string,password:string}} params
+ * @returns {Promise<User|null>}
+ */
 export async function verifyUserCredentials({ email, password }) {
   const normalizedEmail = normalizeEmail(email);
   const result = await pool.query(
@@ -67,6 +94,10 @@ export async function verifyUserCredentials({ email, password }) {
   return toPublicUser(row);
 }
 
+/**
+ * @param {{userId:number,userAgent?:string,ipAddress?:string}} params
+ * @returns {Promise<AuthSession & {expiresAt: Date}>}
+ */
 export async function createSession({ userId, userAgent, ipAddress }) {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashSessionToken(token);
@@ -78,9 +109,13 @@ export async function createSession({ userId, userAgent, ipAddress }) {
     [userId, tokenHash, String(userAgent || '').slice(0, 1024), String(ipAddress || '').slice(0, 64), expiresAt]
   );
 
-  return { token, expiresAt };
+  return { userId, token, expiresAt };
 }
 
+/**
+ * @param {string|undefined|null} token
+ * @returns {Promise<User|null>}
+ */
 export async function getUserFromSessionToken(token) {
   if (!token) return null;
 
@@ -99,6 +134,10 @@ export async function getUserFromSessionToken(token) {
   return toPublicUser(result.rows[0]);
 }
 
+/**
+ * @param {string|undefined|null} token
+ * @returns {Promise<void>}
+ */
 export async function revokeSessionByToken(token) {
   if (!token) return;
 
