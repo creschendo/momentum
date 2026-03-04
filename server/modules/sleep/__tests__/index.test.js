@@ -56,4 +56,47 @@ describe('sleep router scaffolding', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({ count: 3, avgDurationHours: 7.25 });
   });
+
+  it('rejects invalid date format for POST /sessions', async () => {
+    const addSleepSpy = vi.spyOn(service, 'addSleepSession');
+    const createHandler = getRouteHandler(router, 'post', '/sessions');
+    const res = await runRoute(createHandler, {
+      user: { id: 1 },
+      body: {
+        startTime: 'bad-date',
+        endTime: '2026-03-02T06:00:00.000Z'
+      }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid date format' });
+    expect(addSleepSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when deleting a missing sleep session', async () => {
+    vi.spyOn(service, 'deleteSleepSession').mockResolvedValueOnce(false);
+
+    const deleteHandler = getRouteHandler(router, 'delete', '/sessions/:id');
+    const res = await runRoute(deleteHandler, {
+      user: { id: 8 },
+      params: { id: '404' }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ error: 'Sleep session not found' });
+  });
+
+  it('returns list from /sessions with numeric limit', async () => {
+    vi.spyOn(service, 'listSleepSessions').mockResolvedValueOnce([{ id: 1 }]);
+
+    const listHandler = getRouteHandler(router, 'get', '/sessions');
+    const res = await runRoute(listHandler, {
+      user: { id: 8 },
+      query: { limit: '14' }
+    });
+
+    expect(service.listSleepSessions).toHaveBeenCalledWith({ userId: 8, limit: 14 });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual([{ id: 1 }]);
+  });
 });

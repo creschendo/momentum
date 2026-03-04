@@ -79,4 +79,55 @@ describe('auth router scaffolding', () => {
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: 'Unauthorized' });
   });
+
+  it('validates register payload before calling service', async () => {
+    const registerHandler = getRouteHandler(router, 'post', '/register');
+    const res = await runRoute(registerHandler, {
+      body: { email: 'bad-email', password: 'password123' },
+      headers: {}
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Valid email is required' });
+    expect(authService.createUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 when register hits duplicate email constraint', async () => {
+    const duplicateError = new Error('duplicate key');
+    duplicateError.code = '23505';
+    authService.createUser.mockRejectedValueOnce(duplicateError);
+
+    const registerHandler = getRouteHandler(router, 'post', '/register');
+    const res = await runRoute(registerHandler, {
+      body: { email: 'user@example.com', password: 'password123', displayName: 'User' },
+      headers: {}
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toEqual({ error: 'Email already in use' });
+    expect(authService.createSession).not.toHaveBeenCalled();
+  });
+
+  it('revokes session and clears cookie on logout', async () => {
+    const logoutHandler = getRouteHandler(router, 'post', '/logout');
+    const res = await runRoute(logoutHandler, {
+      cookies: { momentum_session: 'session-token' }
+    });
+
+    expect(authService.revokeSessionByToken).toHaveBeenCalledWith('session-token');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(res.clearCookieCalls).toHaveLength(1);
+    expect(res.clearCookieCalls[0]).toMatchObject({ name: 'momentum_session' });
+  });
+
+  it('returns user for /me with valid session cookie', async () => {
+    authService.getUserFromSessionToken.mockResolvedValueOnce({ id: 3, email: 'user@example.com' });
+
+    const meHandler = getRouteHandler(router, 'get', '/me');
+    const res = await runRoute(meHandler, { cookies: { momentum_session: 'token' } });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ user: { id: 3, email: 'user@example.com' } });
+  });
 });

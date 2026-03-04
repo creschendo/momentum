@@ -77,4 +77,24 @@ describe('sleep service', () => {
     const deleted = await service.deleteSleepSession({ userId: 1, id: 1 });
     expect(deleted).toBe(true);
   });
+
+  it('returns zeroed summary values and minimum days clamp when no sessions exist', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const summary = await service.getSleepSummary({ userId: 1, days: 1 });
+    expect(summary).toEqual({
+      days: 3,
+      count: 0,
+      avgDurationHours: 0,
+      avgQuality: 0,
+      latest: null
+    });
+  });
+
+  it('returns false when deleteSleepSession affects no rows', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+    const deleted = await service.deleteSleepSession({ userId: 1, id: 999 });
+    expect(deleted).toBe(false);
+  });
 });
