@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:init": "node scripts/apply-schema.mjs",
     "seed:user": "node scripts/seed-auth-user.mjs",
     "auth:setup": "npm run db:init && npm run seed:user"
@@ -24,6 +25,8 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
     "nodemon": "^3.1.10"
   }
 }

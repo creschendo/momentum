@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "types.ts",
+    "types.d.ts",
+    "modules/auth/index.js",
+    "modules/auth/service.js",
+    "modules/nutrition/calorieninjas.js",
+    "modules/nutrition/index.js",
+    "modules/fitness/index.js",
+    "modules/productivity/index.js"
+  ]
+}

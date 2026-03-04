@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "allowJs": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/api/**/*.ts",
+    "src/types/**/*",
+    "src/modules/nutrition/hooks/**/*.ts",
+    "src/modules/fitness/hooks/**/*.ts",
+    "src/modules/nutrition/context/**/*.tsx",
+    "src/modules/nutrition/*.tsx",
+    "src/modules/nutrition/NutritionModule.tsx",
+    "src/modules/fitness/*.tsx",
+    "src/modules/fitness/FitnessModule.tsx",
+    "src/modules/nutrition/index.ts",
+    "src/modules/fitness/index.ts"
+  ]
+}

@@ -11,12 +11,16 @@
     "start": "node server/index.js",
     "test": "vitest",
     "test:run": "vitest run",
+    "typecheck:client": "npm --prefix client run typecheck",
+    "typecheck:server": "npm --prefix server run typecheck",
+    "typecheck": "npm run typecheck:client && npm run typecheck:server",
     "db:init": "npm --prefix server run db:init",
     "seed:user": "npm --prefix server run seed:user",
     "auth:setup": "npm --prefix server run auth:setup"
   },
   "devDependencies": {
     "concurrently": "^8.2.0",
+    "typescript": "^5.8.2",
     "vitest": "^1.3.0"
   }
 }
