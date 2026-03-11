@@ -50,7 +50,7 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(cookieParser());
+app.use(cookieParser() as unknown as express.RequestHandler);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
@@ -59,7 +59,7 @@ app.get('/api/hello', (req, res) => {
 });
 
 // Module routes (modular architecture)
-app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/auth', authLimiter as unknown as express.RequestHandler, authRouter);
 app.use('/api/nutrition', requireAuth, nutritionRouter);
 app.use('/api/fitness', requireAuth, fitnessRouter);
 app.use('/api/productivity', requireAuth, productivityRouter);

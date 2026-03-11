@@ -1,5 +1,4 @@
-// @ts-check
-import express from 'express';
+import express, { Request, Response } from 'express';
 import {
   SESSION_COOKIE_NAME,
   createUser,
@@ -9,19 +8,11 @@ import {
   getUserFromSessionToken,
   revokeSessionByToken
 } from './service.js';
-
-/** @typedef {import('express').Request} Request */
-/** @typedef {import('express').Response} Response */
-/** @typedef {import('../../types').AuthRegisterBody} AuthRegisterBody */
-/** @typedef {import('../../types').AuthLoginBody} AuthLoginBody */
+import type { AuthRegisterBody, AuthLoginBody } from '../../types.js';
 
 const router = express.Router();
 
-/**
- * @param {Request} req
- * @returns {string}
- */
-function getClientIp(req) {
+function getClientIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length > 0) {
     return forwarded.split(',')[0].trim();
@@ -29,10 +20,9 @@ function getClientIp(req) {
   return req.ip || '';
 }
 
-/** @param {Request} req @param {Response} res */
-router.post('/register', async (req, res) => {
+router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, displayName } = /** @type {AuthRegisterBody} */ (req.body || {});
+    const { email, password, displayName } = (req.body || {}) as AuthRegisterBody;
 
     if (!email || !String(email).includes('@')) {
       return res.status(400).json({ error: 'Valid email is required' });
@@ -51,7 +41,7 @@ router.post('/register', async (req, res) => {
     res.cookie(SESSION_COOKIE_NAME, session.token, getSessionCookieOptions());
     return res.status(201).json({ user });
   } catch (err) {
-    const code = /** @type {{ code?: string } | null | undefined} */ (err)?.code;
+    const code = (err as { code?: string } | null | undefined)?.code;
     if (code === '23505') {
       return res.status(409).json({ error: 'Email already in use' });
     }
@@ -59,10 +49,9 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/** @param {Request} req @param {Response} res */
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = /** @type {AuthLoginBody} */ (req.body || {});
+    const { email, password } = (req.body || {}) as AuthLoginBody;
     const user = await verifyUserCredentials({ email, password });
 
     if (!user) {
@@ -82,8 +71,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/** @param {Request} req @param {Response} res */
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.[SESSION_COOKIE_NAME];
     await revokeSessionByToken(token);
@@ -94,8 +82,7 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-/** @param {Request} req @param {Response} res */
-router.get('/me', async (req, res) => {
+router.get('/me', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.[SESSION_COOKIE_NAME];
     const user = await getUserFromSessionToken(token);

@@ -59,8 +59,8 @@ describe('auth service scaffolding', () => {
   });
 
   it('creates a user and returns public profile', async () => {
-    bcrypt.hash.mockResolvedValueOnce('hashed-password');
-    pool.query.mockResolvedValueOnce({
+    vi.mocked(bcrypt.hash).mockResolvedValueOnce('hashed-password' as never);
+    vi.mocked(pool.query).mockResolvedValueOnce({
       rows: [
         {
           id: 1,
@@ -69,7 +69,7 @@ describe('auth service scaffolding', () => {
           created_at: '2026-03-02T00:00:00.000Z'
         }
       ]
-    });
+    } as any);
 
     const user = await createUser({ email: ' Test@Example.com ', password: 'password123', displayName: 'Tester' });
 
@@ -84,7 +84,7 @@ describe('auth service scaffolding', () => {
   });
 
   it('verifies credentials for a known user', async () => {
-    pool.query.mockResolvedValueOnce({
+    vi.mocked(pool.query).mockResolvedValueOnce({
       rows: [
         {
           id: 2,
@@ -94,8 +94,8 @@ describe('auth service scaffolding', () => {
           created_at: '2026-03-02T00:00:00.000Z'
         }
       ]
-    });
-    bcrypt.compare.mockResolvedValueOnce(true);
+    } as any);
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
 
     const user = await verifyUserCredentials({ email: 'user@example.com', password: 'password123' });
 
@@ -109,7 +109,7 @@ describe('auth service scaffolding', () => {
   });
 
   it('returns null when credentials lookup misses user', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as any);
 
     const user = await verifyUserCredentials({ email: 'missing@example.com', password: 'password123' });
     expect(user).toBeNull();
@@ -128,9 +128,9 @@ describe('auth service scaffolding', () => {
   });
 
   it('creates and revokes session tokens', async () => {
-    vi.spyOn(crypto, 'randomBytes').mockReturnValueOnce(Buffer.from('a'.repeat(32)));
-    pool.query.mockResolvedValueOnce({ rowCount: 1 });
-    pool.query.mockResolvedValueOnce({ rowCount: 1 });
+    vi.spyOn(crypto, 'randomBytes').mockReturnValueOnce(Buffer.from('a'.repeat(32)) as any);
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 1 } as any);
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 1 } as any);
 
     const session = await createSession({ userId: 3, userAgent: 'vitest', ipAddress: '127.0.0.1' });
     expect(typeof session.token).toBe('string');

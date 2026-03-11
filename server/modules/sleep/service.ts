@@ -1,8 +1,17 @@
 import pool from '../../db.js';
 
-let sleepTableReadyPromise = null;
+interface SleepRow {
+  id: number;
+  startTime: string;
+  endTime: string;
+  quality: number | string;
+  notes: string | null;
+  createdAt: string | Date;
+}
 
-function ensureSleepTableReady() {
+let sleepTableReadyPromise: Promise<void> | null = null;
+
+function ensureSleepTableReady(): Promise<void> {
   if (!sleepTableReadyPromise) {
     sleepTableReadyPromise = (async () => {
       await pool.query(
@@ -27,7 +36,7 @@ function ensureSleepTableReady() {
   return sleepTableReadyPromise;
 }
 
-function toSleepSession(row) {
+function toSleepSession(row: SleepRow | null) {
   if (!row) return null;
 
   const startDate = new Date(row.startTime);
@@ -46,7 +55,7 @@ function toSleepSession(row) {
   };
 }
 
-export async function addSleepSession({ userId, startTime, endTime, quality, notes }) {
+export async function addSleepSession({ userId, startTime, endTime, quality, notes }: { userId: number; startTime: string; endTime: string; quality?: number; notes?: string }) {
   await ensureSleepTableReady();
   const safeQuality = Math.max(1, Math.min(5, Number(quality) || 3));
   const safeNotes = notes ? String(notes).slice(0, 500) : '';
@@ -61,7 +70,7 @@ export async function addSleepSession({ userId, startTime, endTime, quality, not
   return toSleepSession(result.rows[0]);
 }
 
-export async function listSleepSessions({ userId, limit = 30 }) {
+export async function listSleepSessions({ userId, limit = 30 }: { userId: number; limit?: number }) {
   await ensureSleepTableReady();
   const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(120, Number(limit))) : 30;
 
@@ -77,17 +86,17 @@ export async function listSleepSessions({ userId, limit = 30 }) {
   return result.rows.map(toSleepSession);
 }
 
-export async function deleteSleepSession({ userId, id }) {
+export async function deleteSleepSession({ userId, id }: { userId: number; id: number | string }) {
   await ensureSleepTableReady();
   const result = await pool.query(
     'DELETE FROM sleep_sessions WHERE user_id = $1 AND id = $2 RETURNING id',
     [userId, id]
   );
 
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
-export async function getSleepSummary({ userId, days = 7 }) {
+export async function getSleepSummary({ userId, days = 7 }: { userId: number; days?: number }) {
   await ensureSleepTableReady();
   const safeDays = Number.isFinite(days) ? Math.max(3, Math.min(90, Number(days))) : 7;
 
@@ -100,7 +109,7 @@ export async function getSleepSummary({ userId, days = 7 }) {
     [userId, safeDays]
   );
 
-  const sessions = result.rows.map(toSleepSession);
+  const sessions = result.rows.map(toSleepSession).filter((s): s is NonNullable<ReturnType<typeof toSleepSession>> => s !== null);
   const durationValues = sessions
     .map((session) => session.durationHours)
     .filter((value) => Number.isFinite(value) && value > 0);

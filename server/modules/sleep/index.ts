@@ -1,17 +1,17 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import service from './service.js';
 
 const router = express.Router();
 
-router.get('/status', (req, res) => {
+router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'sleep', status: 'ok', info: 'Sleep module ready' });
 });
 
-router.get('/sessions', async (req, res) => {
+router.get('/sessions', async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const sessions = await service.listSleepSessions({
-      userId: req.user.id,
+      userId: (req as any).user.id,
       limit: limit ? Number(limit) : 30
     });
     res.json(sessions);
@@ -20,7 +20,7 @@ router.get('/sessions', async (req, res) => {
   }
 });
 
-router.post('/sessions', async (req, res) => {
+router.post('/sessions', async (req: Request, res: Response) => {
   try {
     const { startTime, endTime, quality, notes } = req.body || {};
 
@@ -40,7 +40,7 @@ router.post('/sessions', async (req, res) => {
     }
 
     const created = await service.addSleepSession({
-      userId: req.user.id,
+      userId: (req as any).user.id,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       quality,
@@ -53,10 +53,10 @@ router.post('/sessions', async (req, res) => {
   }
 });
 
-router.delete('/sessions/:id', async (req, res) => {
+router.delete('/sessions/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const deleted = await service.deleteSleepSession({ userId: req.user.id, id });
+    const deleted = await service.deleteSleepSession({ userId: (req as any).user.id, id });
     if (!deleted) {
       return res.status(404).json({ error: 'Sleep session not found' });
     }
@@ -66,11 +66,11 @@ router.delete('/sessions/:id', async (req, res) => {
   }
 });
 
-router.get('/summary', async (req, res) => {
+router.get('/summary', async (req: Request, res: Response) => {
   try {
     const { days } = req.query;
     const summary = await service.getSleepSummary({
-      userId: req.user.id,
+      userId: (req as any).user.id,
       days: days ? Number(days) : 7
     });
     res.json(summary);

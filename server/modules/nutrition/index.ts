@@ -1,32 +1,21 @@
-// @ts-check
-import express from 'express';
+import express, { Request, Response } from 'express';
 import service from './service.js';
 import calorieninjas from './calorieninjas.js';
 
-/** @typedef {import('express').Request} Request */
-/** @typedef {import('express').Response} Response */
-/** @typedef {Request & { user: import('../../types').User }} AuthedRequest */
-
 const router = express.Router();
 
-/**
- * @param {Request} req
- * @returns {number}
- */
-function getUserId(req) {
-  return /** @type {AuthedRequest} */ (req).user.id;
+function getUserId(req: Request): number {
+  return (req as any).user.id;
 }
 
 // GET /api/nutrition/status
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/status', (req, res) => {
+router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'nutrition', status: 'ok', info: 'Nutrition module ready' });
 });
 
 // POST /api/nutrition/water
 // body: { volumeMl: number, timestamp?: ISOString }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/water', async (req, res) => {
+router.post('/water', async (req: Request, res: Response) => {
   try {
     const { volumeMl, timestamp } = req.body;
     if (!volumeMl || isNaN(volumeMl) || Number(volumeMl) <= 0) {
@@ -41,11 +30,10 @@ router.post('/water', async (req, res) => {
 
 // GET /api/nutrition/water/entries
 // optional query: since=ISOString
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/water/entries', async (req, res) => {
+router.get('/water/entries', async (req: Request, res: Response) => {
   const { since } = req.query;
   try {
-    const list = await service.listEntries({ userId: getUserId(req), since });
+    const list = await service.listEntries({ userId: getUserId(req), since: since as string | undefined });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -53,11 +41,10 @@ router.get('/water/entries', async (req, res) => {
 });
 
 // GET /api/nutrition/water/summary?period=daily|weekly|monthly
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/water/summary', async (req, res) => {
+router.get('/water/summary', async (req: Request, res: Response) => {
   const { period = 'daily' } = req.query;
   try {
-    const summary = await /** @type {any} */ (service).sumForPeriod({ userId: getUserId(req), period: String(period) });
+    const summary = await service.sumForPeriod({ userId: getUserId(req), period: String(period) });
     res.json(summary);
   } catch (err) {
     res.status(400).json({ error: String(err) });
@@ -65,8 +52,7 @@ router.get('/water/summary', async (req, res) => {
 });
 
 // DELETE /api/nutrition/water/reset
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/water/reset', async (req, res) => {
+router.delete('/water/reset', async (req: Request, res: Response) => {
   try {
     const result = await service.resetWaterEntries({ userId: getUserId(req) });
     res.json(result);
@@ -77,8 +63,7 @@ router.delete('/water/reset', async (req, res) => {
 
 // POST /api/nutrition/weight
 // body: { weightKg: number, entryDate?: YYYY-MM-DD, note?: string }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/weight', async (req, res) => {
+router.post('/weight', async (req: Request, res: Response) => {
   try {
     const { weightKg, entryDate, note } = req.body || {};
     if (!weightKg || isNaN(weightKg) || Number(weightKg) <= 0) {
@@ -98,8 +83,7 @@ router.post('/weight', async (req, res) => {
 });
 
 // GET /api/nutrition/weight/entries?limit=90
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/weight/entries', async (req, res) => {
+router.get('/weight/entries', async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
     const entries = await service.getWeightEntries({
@@ -113,8 +97,7 @@ router.get('/weight/entries', async (req, res) => {
 });
 
 // GET /api/nutrition/weight/trend?days=30
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/weight/trend', async (req, res) => {
+router.get('/weight/trend', async (req: Request, res: Response) => {
   try {
     const { days } = req.query;
     const trend = await service.getWeightTrend({
@@ -128,8 +111,7 @@ router.get('/weight/trend', async (req, res) => {
 });
 
 // DELETE /api/nutrition/weight/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/weight/:id', async (req, res) => {
+router.delete('/weight/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const deleted = await service.deleteWeightEntry({ userId: getUserId(req), id });
@@ -142,9 +124,8 @@ router.delete('/weight/:id', async (req, res) => {
   }
 });
 
-// POST /api/nutrition/search?q=chicken
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/search', async (req, res) => {
+// GET /api/nutrition/search?q=chicken
+router.get('/search', async (req: Request, res: Response) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ error: 'query required' });
   try {
@@ -156,8 +137,7 @@ router.get('/search', async (req, res) => {
 });
 
 // POST /api/nutrition/foods (user submits a food with calorie/macro info)
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/foods', async (req, res) => {
+router.post('/foods', async (req: Request, res: Response) => {
   const { foodName, calories, protein, carbs, fat, timestamp } = req.body;
   try {
     const entry = await service.addFoodEntry({ userId: getUserId(req), foodName, calories, protein, carbs, fat, timestamp });
@@ -168,11 +148,10 @@ router.post('/foods', async (req, res) => {
 });
 
 // GET /api/nutrition/foods
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/foods', async (req, res) => {
+router.get('/foods', async (req: Request, res: Response) => {
   const { since } = req.query;
   try {
-    const entries = await service.getFoodEntries({ userId: getUserId(req), since });
+    const entries = await service.getFoodEntries({ userId: getUserId(req), since: since as string | undefined });
     res.json(entries);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -180,8 +159,7 @@ router.get('/foods', async (req, res) => {
 });
 
 // DELETE /api/nutrition/foods/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/foods/:id', async (req, res) => {
+router.delete('/foods/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const result = await service.deleteFoodEntry({ userId: getUserId(req), id });
@@ -192,11 +170,10 @@ router.delete('/foods/:id', async (req, res) => {
 });
 
 // GET /api/nutrition/foods/summary
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/foods/summary', async (req, res) => {
+router.get('/foods/summary', async (req: Request, res: Response) => {
   const { period = 'daily' } = req.query;
   try {
-    const summary = await /** @type {any} */ (service).getMacroSummary({ userId: getUserId(req), period: String(period) });
+    const summary = await service.getMacroSummary({ userId: getUserId(req), period: String(period) });
     res.json(summary);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -205,8 +182,7 @@ router.get('/foods/summary', async (req, res) => {
 
 // POST /api/nutrition/meals
 // body: { name: string, foods: [{foodName, calories, protein, carbs, fat}], timestamp?: ISOString }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/meals', async (req, res) => {
+router.post('/meals', async (req: Request, res: Response) => {
   try {
     const { name, foods, timestamp } = req.body;
     if (!name || !foods || !Array.isArray(foods)) {
@@ -220,11 +196,10 @@ router.post('/meals', async (req, res) => {
 });
 
 // GET /api/nutrition/meals
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/meals', async (req, res) => {
+router.get('/meals', async (req: Request, res: Response) => {
   const { since } = req.query;
   try {
-    const meals = await service.getMeals({ userId: getUserId(req), since });
+    const meals = await service.getMeals({ userId: getUserId(req), since: since as string | undefined });
     res.json(meals);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -232,8 +207,7 @@ router.get('/meals', async (req, res) => {
 });
 
 // PUT /api/nutrition/meals/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.put('/meals/:id', async (req, res) => {
+router.put('/meals/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, foods } = req.body;
   try {
@@ -245,8 +219,7 @@ router.put('/meals/:id', async (req, res) => {
 });
 
 // DELETE /api/nutrition/meals/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/meals/:id', async (req, res) => {
+router.delete('/meals/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const result = await service.deleteMeal({ userId: getUserId(req), id });
@@ -258,12 +231,11 @@ router.delete('/meals/:id', async (req, res) => {
 
 // POST /api/nutrition/tdee
 // body: { age, sex, height_cm, weight_kg, activity_level }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/tdee', async (req, res) => {
+router.post('/tdee', async (req: Request, res: Response) => {
   try {
     const { age, sex, height_cm, weight_kg, activity_level } = req.body;
     console.log('TDEE request:', { age, sex, height_cm, weight_kg, activity_level });
-    
+
     if (!age || !sex || !height_cm || !weight_kg || !activity_level) {
       console.log('Missing fields');
       return res.status(400).json({ error: 'Missing required fields: age, sex, height_cm, weight_kg, activity_level' });

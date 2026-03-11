@@ -1,6 +1,19 @@
 import pool from '../../db.js';
 
-async function createEvent({ userId, title, dateKey, time, description }) {
+interface EventPatch {
+  title?: string;
+  dateKey?: string;
+  time?: string;
+  description?: string;
+}
+
+interface TaskPatch {
+  title?: string;
+  notes?: string;
+  done?: boolean;
+}
+
+async function createEvent({ userId, title, dateKey, time, description }: { userId: number; title: string; dateKey: string; time: string; description?: string }) {
   const now = new Date();
   const result = await pool.query(
     `INSERT INTO events (user_id, title, description, event_date, event_time, created_at, updated_at)
@@ -20,7 +33,7 @@ async function createEvent({ userId, title, dateKey, time, description }) {
   return result.rows[0];
 }
 
-async function listEvents({ userId, startDate, endDate } = {}) {
+async function listEvents({ userId, startDate, endDate }: { userId: number; startDate?: string; endDate?: string } = { userId: 0 }) {
   if (startDate && endDate) {
     const result = await pool.query(
       `SELECT id, title, description, event_date::text as "dateKey",
@@ -40,14 +53,13 @@ async function listEvents({ userId, startDate, endDate } = {}) {
             created_at as "createdAt", updated_at as "updatedAt"
      FROM events
      WHERE user_id = $1
-     ORDER BY event_date ASC, event_time ASC, created_at ASC`
-    ,
+     ORDER BY event_date ASC, event_time ASC, created_at ASC`,
     [userId]
   );
   return result.rows;
 }
 
-async function getEvent({ userId, id }) {
+async function getEvent({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     `SELECT id, title, description, event_date::text as "dateKey",
             to_char(event_time, 'HH24:MI') as "time",
@@ -58,7 +70,7 @@ async function getEvent({ userId, id }) {
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-async function updateEvent({ userId, id, patch }) {
+async function updateEvent({ userId, id, patch }: { userId: number; id: number | string; patch: EventPatch }) {
   const event = await getEvent({ userId, id });
   if (!event) return null;
 
@@ -81,12 +93,12 @@ async function updateEvent({ userId, id, patch }) {
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-async function removeEvent({ userId, id }) {
+async function removeEvent({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM events WHERE user_id = $1 AND id = $2', [userId, id]);
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
-async function createTask({ userId, title, notes }) {
+async function createTask({ userId, title, notes }: { userId: number; title: string; notes?: string }) {
   const now = new Date();
   const result = await pool.query(
     'INSERT INTO tasks (user_id, title, notes, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt"',
@@ -95,7 +107,7 @@ async function createTask({ userId, title, notes }) {
   return result.rows[0];
 }
 
-async function listTasks({ userId }) {
+async function listTasks({ userId }: { userId: number }) {
   const result = await pool.query(
     'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 ORDER BY created_at DESC',
     [userId]
@@ -103,7 +115,7 @@ async function listTasks({ userId }) {
   return result.rows;
 }
 
-async function getTask({ userId, id }) {
+async function getTask({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 AND id = $2',
     [userId, id]
@@ -111,26 +123,26 @@ async function getTask({ userId, id }) {
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-async function updateTask({ userId, id, patch }) {
+async function updateTask({ userId, id, patch }: { userId: number; id: number | string; patch: TaskPatch }) {
   const task = await getTask({ userId, id });
   if (!task) return null;
-  
+
   const title = patch.title !== undefined ? String(patch.title).slice(0, 256) : task.title;
   const notes = patch.notes !== undefined ? String(patch.notes).slice(0, 2000) : task.notes;
   const done = patch.done !== undefined ? Boolean(patch.done) : task.done;
   const now = new Date();
-  
+
   const result = await pool.query(
     'UPDATE tasks SET title = $1, notes = $2, done = $3, updated_at = $4 WHERE user_id = $5 AND id = $6 RETURNING id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt"',
     [title, notes, done, now, userId, id]
   );
-  
+
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-async function removeTask({ userId, id }) {
+async function removeTask({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM tasks WHERE user_id = $1 AND id = $2', [userId, id]);
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 export default {

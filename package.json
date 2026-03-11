@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "start": "node server/index.js",
+    "start": "tsx server/index.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck:client": "npm --prefix client run typecheck",

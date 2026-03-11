@@ -1,25 +1,18 @@
-// @ts-check
 import axios from 'axios';
+import type { NutritionSearchResult, NaturalLanguageResult, TdeeRequest, TdeeResult } from '../../types.js';
 
-/** @typedef {import('../../types').NutritionSearchResult} NutritionSearchResult */
-/** @typedef {import('../../types').NaturalLanguageResult} NaturalLanguageResult */
-/** @typedef {import('../../types').TdeeRequest} TdeeRequest */
-/** @typedef {import('../../types').TdeeResult} TdeeResult */
+interface CalorieNinjaItem {
+  name?: string;
+  serving_size_g?: number;
+  calories?: number;
+  protein_g?: number;
+  carbohydrates_total_g?: number;
+  fat_total_g?: number;
+}
 
-/**
- * @typedef {Object} CalorieNinjaItem
- * @property {string} [name]
- * @property {number} [serving_size_g]
- * @property {number} [calories]
- * @property {number} [protein_g]
- * @property {number} [carbohydrates_total_g]
- * @property {number} [fat_total_g]
- */
-
-/**
- * @typedef {Object} CalorieNinjaResponse
- * @property {CalorieNinjaItem[]} [items]
- */
+interface CalorieNinjaResponse {
+  items?: CalorieNinjaItem[];
+}
 
 // CalorieNinjas API wrapper for nutrition data.
 // Requires environment variable:
@@ -29,21 +22,16 @@ import axios from 'axios';
 // Note: Do NOT commit your real key. Use a .env file locally and a secrets manager in production.
 
 const API_KEY = process.env.CALORIENINJAS_API_KEY;
-
 const BASE = 'https://api.calorieninjas.com/v1';
 
-function ensureKeys() {
+function ensureKeys(): void {
   if (!API_KEY) {
     throw new Error('CalorieNinjas API key not configured. Set CALORIENINJAS_API_KEY in environment.');
   }
 }
 
-/**
- * @param {string} query
- * @returns {Promise<NutritionSearchResult>}
- */
-async function searchInstant(query) {
-  // CalorieNinjas nutrition endpoint: GET /nutrition?query=QUERY
+// CalorieNinjas nutrition endpoint: GET /nutrition?query=QUERY
+async function searchInstant(query: string): Promise<NutritionSearchResult> {
   ensureKeys();
   const url = `${BASE}/nutrition`;
   const res = await axios.get(url, {
@@ -52,12 +40,12 @@ async function searchInstant(query) {
       'X-Api-Key': API_KEY
     }
   });
-  
+
   // Transform CalorieNinjas response to match expected format
   // CalorieNinjas returns: items[] with name, calories, protein_g, carbohydrates_total_g, fat_total_g, serving_size_g
-  const payload = /** @type {CalorieNinjaResponse} */ (res.data || {});
+  const payload = (res.data || {}) as CalorieNinjaResponse;
   const items = payload.items || [];
-  
+
   return {
     common: items.map(item => ({
       food_name: item.name,
@@ -71,39 +59,24 @@ async function searchInstant(query) {
 }
 
 // CalorieNinjas doesn't have separate endpoints, so these all use the same search
-/**
- * @param {string} query
- * @returns {Promise<NaturalLanguageResult>}
- */
-async function naturalLanguage(query) {
+async function naturalLanguage(query: string): Promise<NaturalLanguageResult> {
   return searchInstant(query);
 }
 
 // Calculate TDEE (Total Daily Energy Expenditure) and BMR
 // Using Mifflin-St Jeor equation (no external API call needed)
-// Parameters:
-// - age: number (years)
-// - sex: string ('male' or 'female')
-// - height_cm: number (centimeters)
-// - weight_kg: number (kilograms)
-// - activity_level: number (1.375, 1.55, 1.725, or 1.9)
-/**
- * @param {TdeeRequest} params
- * @returns {Promise<TdeeResult>}
- */
-async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level }) {
+async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level }: TdeeRequest): Promise<TdeeResult> {
   // Mifflin-St Jeor equation for BMR
-  let bmr;
+  let bmr: number;
   if (sex === 'male') {
     bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) + 5;
   } else {
     bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age) - 161;
   }
-  
+
   bmr = Math.round(bmr);
   const tdee = Math.round(bmr * activity_level);
-  
-  // Calculate calorie targets for different goals (based on caloriecalculator.net)
+
   // Deficits are based on 1 lb = ~3,500 calories
   const calorieTargets = {
     maintain: tdee,
@@ -111,9 +84,8 @@ async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level })
     weightLoss: Math.max(1200, Math.round(tdee - 500)),          // ~1 lb/week loss
     extremeWeightLoss: Math.max(1200, Math.round(tdee - 750))    // ~1.5 lb/week loss (enforce 1200 min for safety)
   };
-  
-  // Calculate macro distribution based on maintain TDEE
-  // Protein: 1.8g per kg of body weight (good for muscle building/maintenance)
+
+  // Protein: 1.8g per kg of body weight
   // Carbs: 45% of remaining calories
   // Fat: 55% of remaining calories
   const proteinG = weight_kg * 1.8;
@@ -121,7 +93,7 @@ async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level })
   const remainingCals = tdee - proteinCals;
   const carbsCals = remainingCals * 0.45;
   const fatCals = remainingCals * 0.55;
-  
+
   return {
     bmr,
     tdee,
