@@ -1,7 +1,15 @@
 import pool from '../../db.js';
 
+interface MealFood {
+  foodName: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+}
+
 // Water entry functions
-async function addWaterEntry({ userId, volumeMl, timestamp }) {
+async function addWaterEntry({ userId, volumeMl, timestamp }: { userId: number; volumeMl: number; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
     'INSERT INTO water_entries (user_id, volume_ml, timestamp) VALUES ($1, $2, $3) RETURNING id, volume_ml as "volumeMl", timestamp',
@@ -10,24 +18,24 @@ async function addWaterEntry({ userId, volumeMl, timestamp }) {
   return result.rows[0];
 }
 
-async function listEntries({ userId, since } = {}) {
+async function listEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = 'SELECT id, volume_ml as "volumeMl", timestamp FROM water_entries WHERE user_id = $1';
-  const values = [userId];
-  
+  const values: (number | Date)[] = [userId];
+
   if (since) {
     query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
-  
+
   query += ' ORDER BY timestamp DESC';
   const result = await pool.query(query, values);
   return result.rows;
 }
 
-async function sumForPeriod({ userId, period = 'daily' } = {}) {
+async function sumForPeriod({ userId, period = 'daily' }: { userId: number; period?: string } = { userId: 0 }) {
   const now = new Date();
-  let start;
-  
+  let start: Date;
+
   if (period === 'daily') {
     start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   } else if (period === 'weekly') {
@@ -39,23 +47,23 @@ async function sumForPeriod({ userId, period = 'daily' } = {}) {
   } else {
     throw new Error('invalid period');
   }
-  
+
   const result = await pool.query(
     'SELECT COALESCE(SUM(volume_ml), 0) as total FROM water_entries WHERE user_id = $1 AND timestamp >= $2',
     [userId, start]
   );
-  
+
   const total = Number(result.rows[0].total) || 0;
   return { period, start: start.toISOString(), totalMl: total };
 }
 
-async function resetWaterEntries({ userId }) {
+async function resetWaterEntries({ userId }: { userId: number }) {
   const result = await pool.query('DELETE FROM water_entries WHERE user_id = $1', [userId]);
   return { message: 'Water entries reset', count: result.rowCount };
 }
 
 // Body weight functions
-async function upsertWeightEntry({ userId, weightKg, entryDate, note }) {
+async function upsertWeightEntry({ userId, weightKg, entryDate, note }: { userId: number; weightKg: number; entryDate?: string; note?: string }) {
   const normalizedDate = entryDate || new Date().toISOString().slice(0, 10);
   const result = await pool.query(
     `INSERT INTO weight_entries (user_id, weight_kg, entry_date, note, created_at, updated_at)
@@ -71,7 +79,7 @@ async function upsertWeightEntry({ userId, weightKg, entryDate, note }) {
   return result.rows[0];
 }
 
-async function getWeightEntries({ userId, limit = 90 }) {
+async function getWeightEntries({ userId, limit = 90 }: { userId: number; limit?: number }) {
   const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(365, Number(limit))) : 90;
   const result = await pool.query(
     `SELECT id, user_id as "userId", weight_kg::float as "weightKg", entry_date::text as "entryDate", note, created_at as "createdAt", updated_at as "updatedAt"
@@ -84,7 +92,7 @@ async function getWeightEntries({ userId, limit = 90 }) {
   return result.rows;
 }
 
-async function getWeightTrend({ userId, days = 30 }) {
+async function getWeightTrend({ userId, days = 30 }: { userId: number; days?: number }) {
   const safeDays = Number.isFinite(days) ? Math.max(7, Math.min(365, Number(days))) : 30;
   const result = await pool.query(
     `SELECT id, weight_kg::float as "weightKg", entry_date::text as "entryDate", note
@@ -112,27 +120,25 @@ async function getWeightTrend({ userId, days = 30 }) {
   };
 }
 
-async function deleteWeightEntry({ userId, id }) {
+async function deleteWeightEntry({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     'DELETE FROM weight_entries WHERE user_id = $1 AND id = $2 RETURNING id',
     [userId, id]
   );
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 // Meal functions
-async function addMeal({ userId, name, foods, timestamp }) {
+async function addMeal({ userId, name, foods, timestamp }: { userId: number; name: string; foods?: MealFood[]; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
 
-  // Insert meal and get ID
   const mealResult = await pool.query(
     'INSERT INTO meals (user_id, name, timestamp) VALUES ($1, $2, $3) RETURNING id, name, timestamp',
     [userId, name, ts]
   );
-  
+
   const mealId = mealResult.rows[0].id;
-  
-  // Insert foods for this meal
+
   if (foods && Array.isArray(foods)) {
     for (const food of foods) {
       await pool.query(
@@ -141,7 +147,7 @@ async function addMeal({ userId, name, foods, timestamp }) {
       );
     }
   }
-  
+
   return {
     id: mealId,
     name: mealResult.rows[0].name,
@@ -150,24 +156,24 @@ async function addMeal({ userId, name, foods, timestamp }) {
   };
 }
 
-async function getMeals({ userId, since } = {}) {
+async function getMeals({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = `
     SELECT m.id, m.name, m.timestamp,
-           json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat)) 
+           json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat))
            FILTER (WHERE mf.id IS NOT NULL) as foods
     FROM meals m
     LEFT JOIN meal_foods mf ON m.id = mf.meal_id
     WHERE m.user_id = $1
   `;
-  const values = [userId];
-  
+  const values: (number | Date)[] = [userId];
+
   if (since) {
     query += ' AND m.timestamp >= $2';
     values.push(new Date(since));
   }
-  
+
   query += ' GROUP BY m.id, m.name, m.timestamp ORDER BY m.timestamp DESC';
-  
+
   const result = await pool.query(query, values);
   return result.rows.map(row => ({
     id: row.id,
@@ -177,13 +183,11 @@ async function getMeals({ userId, since } = {}) {
   }));
 }
 
-async function updateMeal({ userId, id, name, foods }) {
-  // Update meal name if provided
+async function updateMeal({ userId, id, name, foods }: { userId: number; id: number | string; name?: string; foods?: MealFood[] }) {
   if (name !== undefined) {
     await pool.query('UPDATE meals SET name = $1 WHERE id = $2 AND user_id = $3', [name, id, userId]);
   }
-  
-  // Delete old foods and insert new ones if provided
+
   if (foods !== undefined) {
     await pool.query('DELETE FROM meal_foods WHERE meal_id = $1 AND meal_id IN (SELECT id FROM meals WHERE user_id = $2)', [id, userId]);
     for (const food of foods) {
@@ -193,11 +197,10 @@ async function updateMeal({ userId, id, name, foods }) {
       );
     }
   }
-  
-  // Return updated meal
+
   const result = await pool.query(
     `SELECT m.id, m.name, m.timestamp,
-            json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat)) 
+            json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat))
             FILTER (WHERE mf.id IS NOT NULL) as foods
      FROM meals m
      LEFT JOIN meal_foods mf ON m.id = mf.meal_id
@@ -205,11 +208,11 @@ async function updateMeal({ userId, id, name, foods }) {
      GROUP BY m.id, m.name, m.timestamp`,
     [id, userId]
   );
-  
+
   if (result.rows.length === 0) {
     throw new Error('Meal not found');
   }
-  
+
   return {
     id: result.rows[0].id,
     name: result.rows[0].name,
@@ -218,7 +221,7 @@ async function updateMeal({ userId, id, name, foods }) {
   };
 }
 
-async function deleteMeal({ userId, id }) {
+async function deleteMeal({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM meals WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
     throw new Error('Meal not found');
@@ -227,7 +230,7 @@ async function deleteMeal({ userId, id }) {
 }
 
 // Food entry functions
-async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, timestamp }) {
+async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, timestamp }: { userId: number; foodName: string; calories?: number; protein?: number; carbs?: number; fat?: number; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
     'INSERT INTO food_entries (user_id, food_name, calories, protein, carbs, fat, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, food_name as "foodName", calories, protein, carbs, fat, timestamp',
@@ -236,21 +239,21 @@ async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, t
   return result.rows[0];
 }
 
-async function getFoodEntries({ userId, since } = {}) {
+async function getFoodEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = 'SELECT id, food_name as "foodName", calories, protein, carbs, fat, timestamp FROM food_entries WHERE user_id = $1';
-  const values = [userId];
-  
+  const values: (number | Date)[] = [userId];
+
   if (since) {
     query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
-  
+
   query += ' ORDER BY timestamp DESC';
   const result = await pool.query(query, values);
   return result.rows;
 }
 
-async function deleteFoodEntry({ userId, id }) {
+async function deleteFoodEntry({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM food_entries WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
     throw new Error('Food entry not found');
@@ -258,9 +261,9 @@ async function deleteFoodEntry({ userId, id }) {
   return { message: 'Food entry deleted', entry: result.rows[0] };
 }
 
-async function getMacroSummary({ userId, period = 'daily' } = {}) {
+async function getMacroSummary({ userId, period = 'daily' }: { userId: number; period?: string } = { userId: 0 }) {
   const now = new Date();
-  let start;
+  let start: Date;
 
   if (period === 'daily') {
     start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -275,7 +278,7 @@ async function getMacroSummary({ userId, period = 'daily' } = {}) {
   }
 
   const result = await pool.query(
-    `SELECT 
+    `SELECT
        COALESCE(SUM(COALESCE(mf.calories, 0)), 0)::INTEGER as total_calories,
        COALESCE(SUM(COALESCE(mf.protein, 0)), 0)::FLOAT as total_protein,
        COALESCE(SUM(COALESCE(mf.carbs, 0)), 0)::FLOAT as total_carbs,
@@ -291,7 +294,7 @@ async function getMacroSummary({ userId, period = 'daily' } = {}) {
 
   // For weekly, calculate daily averages
   if (period === 'weekly') {
-    const daysSinceStart = Math.ceil((now - start) / (1000 * 60 * 60 * 24));
+    const daysSinceStart = Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     return {
       period,
       start: start.toISOString(),
@@ -315,18 +318,19 @@ async function getMacroSummary({ userId, period = 'daily' } = {}) {
     entryCount: totals.entry_count
   };
 }
-export default { 
-  addWaterEntry, 
-  listEntries, 
-  sumForPeriod, 
-  resetWaterEntries, 
+
+export default {
+  addWaterEntry,
+  listEntries,
+  sumForPeriod,
+  resetWaterEntries,
   upsertWeightEntry,
   getWeightEntries,
   getWeightTrend,
   deleteWeightEntry,
-  addFoodEntry, 
-  getFoodEntries, 
-  deleteFoodEntry, 
+  addFoodEntry,
+  getFoodEntries,
+  deleteFoodEntry,
   getMacroSummary,
   addMeal,
   getMeals,

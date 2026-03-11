@@ -37,8 +37,8 @@ describe('auth router scaffolding', () => {
   });
 
   it('returns 201 on successful register', async () => {
-    authService.createUser.mockResolvedValueOnce({ id: 7, email: 'user@example.com', displayName: 'User' });
-    authService.createSession.mockResolvedValueOnce({ token: 'session-token' });
+    vi.mocked(authService.createUser).mockResolvedValueOnce({ id: 7, email: 'user@example.com', displayName: 'User' });
+    vi.mocked(authService.createSession).mockResolvedValueOnce({ token: 'session-token' } as any);
 
     const registerHandler = getRouteHandler(router, 'post', '/register');
     const res = await runRoute(registerHandler, {
@@ -57,7 +57,7 @@ describe('auth router scaffolding', () => {
   });
 
   it('returns 401 for invalid login credentials', async () => {
-    authService.verifyUserCredentials.mockResolvedValueOnce(null);
+    vi.mocked(authService.verifyUserCredentials).mockResolvedValueOnce(null);
 
     const loginHandler = getRouteHandler(router, 'post', '/login');
     const res = await runRoute(loginHandler, {
@@ -71,7 +71,7 @@ describe('auth router scaffolding', () => {
   });
 
   it('returns 401 on /me without valid session cookie', async () => {
-    authService.getUserFromSessionToken.mockResolvedValueOnce(null);
+    vi.mocked(authService.getUserFromSessionToken).mockResolvedValueOnce(null);
 
     const meHandler = getRouteHandler(router, 'get', '/me');
     const res = await runRoute(meHandler, { cookies: {} });
@@ -94,8 +94,8 @@ describe('auth router scaffolding', () => {
 
   it('returns 409 when register hits duplicate email constraint', async () => {
     const duplicateError = new Error('duplicate key');
-    duplicateError.code = '23505';
-    authService.createUser.mockRejectedValueOnce(duplicateError);
+    (duplicateError as any).code = '23505';
+    vi.mocked(authService.createUser).mockRejectedValueOnce(duplicateError);
 
     const registerHandler = getRouteHandler(router, 'post', '/register');
     const res = await runRoute(registerHandler, {
@@ -122,12 +122,12 @@ describe('auth router scaffolding', () => {
   });
 
   it('returns user for /me with valid session cookie', async () => {
-    authService.getUserFromSessionToken.mockResolvedValueOnce({ id: 3, email: 'user@example.com' });
+    vi.mocked(authService.getUserFromSessionToken).mockResolvedValueOnce({ id: 3, email: 'user@example.com', displayName: '' });
 
     const meHandler = getRouteHandler(router, 'get', '/me');
     const res = await runRoute(meHandler, { cookies: { momentum_session: 'token' } });
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ user: { id: 3, email: 'user@example.com' } });
+    expect(res.body).toEqual({ user: { id: 3, email: 'user@example.com', displayName: '' } });
   });
 });

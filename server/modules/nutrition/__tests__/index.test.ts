@@ -36,7 +36,7 @@ describe('nutrition router scaffolding', () => {
   });
 
   it('returns food summary from /foods/summary', async () => {
-    vi.spyOn(service, 'getMacroSummary').mockResolvedValueOnce({ period: 'daily', calories: 1000 });
+    vi.spyOn(service, 'getMacroSummary').mockResolvedValueOnce({ period: 'daily', calories: 1000 } as any);
 
     const summaryHandler = getRouteHandler(router, 'get', '/foods/summary');
     const res = await runRoute(summaryHandler, {

@@ -1,33 +1,22 @@
-// @ts-check
-import express from 'express';
+import express, { Request, Response } from 'express';
 import service from './service.js';
-
-/** @typedef {import('express').Request} Request */
-/** @typedef {import('express').Response} Response */
-/** @typedef {Request & { user: import('../../types').User }} AuthedRequest */
 
 const router = express.Router();
 
-/**
- * @param {Request} req
- * @returns {number}
- */
-function getUserId(req) {
-  return /** @type {AuthedRequest} */ (req).user.id;
+function getUserId(req: Request): number {
+  return (req as any).user.id;
 }
 
 // GET /api/productivity/status
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/status', (req, res) => {
+router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'productivity', status: 'ok', info: 'Productivity module ready' });
 });
 
 // GET /api/productivity/events?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/events', async (req, res) => {
+router.get('/events', async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
-    const list = await service.listEvents({ userId: getUserId(req), startDate, endDate });
+    const list = await service.listEvents({ userId: getUserId(req), startDate: startDate as string | undefined, endDate: endDate as string | undefined });
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -35,8 +24,7 @@ router.get('/events', async (req, res) => {
 });
 
 // POST /api/productivity/events  body: { title, dateKey, time, description? }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/events', async (req, res) => {
+router.post('/events', async (req: Request, res: Response) => {
   try {
     const { title, dateKey, time, description } = req.body || {};
     if (!title || String(title).trim().length === 0) {
@@ -63,8 +51,7 @@ router.post('/events', async (req, res) => {
 });
 
 // PATCH /api/productivity/events/:id  body: { title?, dateKey?, time?, description? }
-/** @param {AuthedRequest} req @param {Response} res */
-router.patch('/events/:id', async (req, res) => {
+router.patch('/events/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { title, dateKey, time, description } = req.body || {};
@@ -85,8 +72,7 @@ router.patch('/events/:id', async (req, res) => {
 });
 
 // DELETE /api/productivity/events/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/events/:id', async (req, res) => {
+router.delete('/events/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const ok = await service.removeEvent({ userId: getUserId(req), id });
@@ -98,8 +84,7 @@ router.delete('/events/:id', async (req, res) => {
 });
 
 // GET /api/productivity/tasks
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/tasks', async (req, res) => {
+router.get('/tasks', async (req: Request, res: Response) => {
   try {
     const list = await service.listTasks({ userId: getUserId(req) });
     res.json(list);
@@ -109,8 +94,7 @@ router.get('/tasks', async (req, res) => {
 });
 
 // POST /api/productivity/tasks  body: { title, notes }
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/tasks', async (req, res) => {
+router.post('/tasks', async (req: Request, res: Response) => {
   try {
     const { title, notes } = req.body;
     if (!title || String(title).trim().length === 0) {
@@ -124,8 +108,7 @@ router.post('/tasks', async (req, res) => {
 });
 
 // PATCH /api/productivity/tasks/:id  body: { title?, notes?, done? }
-/** @param {AuthedRequest} req @param {Response} res */
-router.patch('/tasks/:id', async (req, res) => {
+router.patch('/tasks/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updated = await service.updateTask({ userId: getUserId(req), id, patch: req.body || {} });
@@ -137,8 +120,7 @@ router.patch('/tasks/:id', async (req, res) => {
 });
 
 // DELETE /api/productivity/tasks/:id
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/tasks/:id', async (req, res) => {
+router.delete('/tasks/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const ok = await service.removeTask({ userId: getUserId(req), id });

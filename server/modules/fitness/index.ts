@@ -1,30 +1,19 @@
-// @ts-check
-import express from 'express';
+import express, { Request, Response } from 'express';
 import * as service from './service.js';
-
-/** @typedef {import('express').Request} Request */
-/** @typedef {import('express').Response} Response */
-/** @typedef {Request & { user: import('../../types').User }} AuthedRequest */
 
 const router = express.Router();
 
-/**
- * @param {Request} req
- * @returns {number}
- */
-function getUserId(req) {
-  return /** @type {AuthedRequest} */ (req).user.id;
+function getUserId(req: Request): number {
+  return (req as any).user.id;
 }
 
 // GET /api/fitness/status
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/status', (req, res) => {
+router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'fitness', status: 'ok', info: 'Fitness module ready' });
 });
 
 // Splits CRUD
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/splits', async (req, res) => {
+router.get('/splits', async (req: Request, res: Response) => {
   try {
     const splits = await service.getSplits({ userId: getUserId(req) });
     res.json(splits);
@@ -33,8 +22,7 @@ router.get('/splits', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/splits', async (req, res) => {
+router.post('/splits', async (req: Request, res: Response) => {
   try {
     const { title, name, days } = req.body;
     const splitName = name || title;
@@ -48,8 +36,7 @@ router.post('/splits', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.get('/splits/:id', async (req, res) => {
+router.get('/splits/:id', async (req: Request, res: Response) => {
   try {
     const split = await service.getSplit({ userId: getUserId(req), id: req.params.id });
     if (!split) return res.status(404).json({ error: 'Split not found' });
@@ -59,8 +46,7 @@ router.get('/splits/:id', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.put('/splits/:id', async (req, res) => {
+router.put('/splits/:id', async (req: Request, res: Response) => {
   try {
     const split = await service.updateSplit({ userId: getUserId(req), id: req.params.id, updates: req.body });
     if (!split) return res.status(404).json({ error: 'Split not found' });
@@ -70,8 +56,7 @@ router.put('/splits/:id', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/splits/:id', async (req, res) => {
+router.delete('/splits/:id', async (req: Request, res: Response) => {
   try {
     const deleted = await service.deleteSplit({ userId: getUserId(req), id: req.params.id });
     if (!deleted) return res.status(404).json({ error: 'Split not found' });
@@ -82,8 +67,7 @@ router.delete('/splits/:id', async (req, res) => {
 });
 
 // Days
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/splits/:splitId/days', async (req, res) => {
+router.post('/splits/:splitId/days', async (req: Request, res: Response) => {
   try {
     const day = await service.addDayToSplit({ userId: getUserId(req), splitId: req.params.splitId, dayData: req.body });
     if (!day) return res.status(404).json({ error: 'Split not found' });
@@ -93,8 +77,7 @@ router.post('/splits/:splitId/days', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.put('/splits/:splitId/days/:dayId', async (req, res) => {
+router.put('/splits/:splitId/days/:dayId', async (req: Request, res: Response) => {
   try {
     const day = await service.updateDayInSplit({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, updates: req.body });
     if (!day) return res.status(404).json({ error: 'Day not found' });
@@ -104,8 +87,7 @@ router.put('/splits/:splitId/days/:dayId', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/splits/:splitId/days/:dayId', async (req, res) => {
+router.delete('/splits/:splitId/days/:dayId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeDayFromSplit({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId });
     if (!deleted) return res.status(404).json({ error: 'Day not found' });
@@ -116,8 +98,7 @@ router.delete('/splits/:splitId/days/:dayId', async (req, res) => {
 });
 
 // Lifts
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/splits/:splitId/days/:dayId/lifts', async (req, res) => {
+router.post('/splits/:splitId/days/:dayId/lifts', async (req: Request, res: Response) => {
   try {
     const lift = await service.addLiftToDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, lift: req.body });
     if (!lift) return res.status(404).json({ error: 'Split or day not found' });
@@ -127,8 +108,7 @@ router.post('/splits/:splitId/days/:dayId/lifts', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req, res) => {
+router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, res: Response) => {
   try {
     const lift = await service.updateLiftInDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, liftId: req.params.liftId, updates: req.body });
     if (!lift) return res.status(404).json({ error: 'Lift not found' });
@@ -138,8 +118,7 @@ router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req, res) => {
+router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeLiftFromDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, liftId: req.params.liftId });
     if (!deleted) return res.status(404).json({ error: 'Lift not found' });
@@ -150,8 +129,7 @@ router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req, res) => 
 });
 
 // Cardio
-/** @param {AuthedRequest} req @param {Response} res */
-router.post('/splits/:splitId/days/:dayId/cardio', async (req, res) => {
+router.post('/splits/:splitId/days/:dayId/cardio', async (req: Request, res: Response) => {
   try {
     const cardio = await service.addCardioToDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, cardio: req.body });
     if (!cardio) return res.status(404).json({ error: 'Split or day not found' });
@@ -161,8 +139,7 @@ router.post('/splits/:splitId/days/:dayId/cardio', async (req, res) => {
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req, res) => {
+router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request, res: Response) => {
   try {
     const cardio = await service.updateCardioInDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, cardioId: req.params.cardioId, updates: req.body });
     if (!cardio) return res.status(404).json({ error: 'Cardio session not found' });
@@ -172,8 +149,7 @@ router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req, res) => 
   }
 });
 
-/** @param {AuthedRequest} req @param {Response} res */
-router.delete('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req, res) => {
+router.delete('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeCardioFromDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, cardioId: req.params.cardioId });
     if (!deleted) return res.status(404).json({ error: 'Cardio session not found' });

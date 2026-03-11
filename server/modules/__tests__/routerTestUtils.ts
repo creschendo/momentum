@@ -1,19 +1,26 @@
-export function getRouteMethodsByPath(expressRouter) {
-  return (expressRouter.stack || [])
-    .filter((layer) => layer.route)
-    .map((layer) => ({
+import type { Router } from 'express';
+
+interface RouteInfo {
+  path: string;
+  methods: string[];
+}
+
+export function getRouteMethodsByPath(expressRouter: Router): RouteInfo[] {
+  return ((expressRouter as any).stack || [])
+    .filter((layer: any) => layer.route)
+    .map((layer: any) => ({
       path: layer.route.path,
       methods: Object.keys(layer.route.methods || {})
     }));
 }
 
-export function hasRoute(routes, path, method) {
+export function hasRoute(routes: RouteInfo[], path: string, method: string): boolean {
   return routes.some((route) => route.path === path && route.methods.includes(method));
 }
 
-export function getRouteHandler(expressRouter, method, path) {
-  const layer = (expressRouter.stack || []).find(
-    (candidate) =>
+export function getRouteHandler(expressRouter: Router, method: string, path: string) {
+  const layer = ((expressRouter as any).stack || []).find(
+    (candidate: any) =>
       candidate.route &&
       candidate.route.path === path &&
       candidate.route.methods &&
@@ -30,15 +37,15 @@ export function getRouteHandler(expressRouter, method, path) {
 export function createMockRes() {
   return {
     statusCode: 200,
-    body: undefined,
-    cookieCalls: [],
-    clearCookieCalls: [],
+    body: undefined as unknown,
+    cookieCalls: [] as { name: string; value: string; options: unknown }[],
+    clearCookieCalls: [] as { name: string; options: unknown }[],
     ended: false,
-    status(code) {
+    status(code: number) {
       this.statusCode = code;
       return this;
     },
-    json(payload) {
+    json(payload: unknown) {
       this.body = payload;
       return this;
     },
@@ -46,18 +53,18 @@ export function createMockRes() {
       this.ended = true;
       return this;
     },
-    cookie(name, value, options) {
+    cookie(name: string, value: string, options: unknown) {
       this.cookieCalls.push({ name, value, options });
       return this;
     },
-    clearCookie(name, options) {
+    clearCookie(name: string, options: unknown) {
       this.clearCookieCalls.push({ name, options });
       return this;
     }
   };
 }
 
-export async function runRoute(handler, req = {}) {
+export async function runRoute(handler: (req: unknown, res: unknown) => unknown, req: Record<string, unknown> = {}) {
   const response = createMockRes();
   await handler(req, response);
   return response;

@@ -1,28 +1,25 @@
-// @ts-check
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import type { CookieOptions } from 'express';
 import pool from '../../db.js';
-
-/** @typedef {import('../../types').User} User */
-/** @typedef {import('../../types').AuthSession} AuthSession */
+import type { User, AuthSession } from '../../types.js';
 
 export const SESSION_COOKIE_NAME = 'momentum_session';
 const SESSION_DURATION_DAYS = 30;
 const PASSWORD_ROUNDS = 10;
 
-/**
- * @param {unknown} email
- * @returns {string}
- */
-function normalizeEmail(email) {
+interface UserRow {
+  id: number;
+  email: string;
+  display_name?: string;
+  created_at?: string | Date;
+}
+
+function normalizeEmail(email: unknown): string {
   return String(email || '').trim().toLowerCase();
 }
 
-/**
- * @param {{id:number,email:string,display_name?:string,created_at?:string|Date}|undefined|null} row
- * @returns {User|null}
- */
-function toPublicUser(row) {
+function toPublicUser(row: UserRow | undefined | null): User | null {
   if (!row) return null;
   return {
     id: row.id,
@@ -32,18 +29,11 @@ function toPublicUser(row) {
   };
 }
 
-/**
- * @param {string} token
- * @returns {string}
- */
-function hashSessionToken(token) {
+function hashSessionToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/**
- * @returns {import('express').CookieOptions}
- */
-export function getSessionCookieOptions() {
+export function getSessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     sameSite: 'lax',
@@ -53,11 +43,7 @@ export function getSessionCookieOptions() {
   };
 }
 
-/**
- * @param {{email:string,password:string,displayName?:string}} params
- * @returns {Promise<User>}
- */
-export async function createUser({ email, password, displayName }) {
+export async function createUser({ email, password, displayName }: { email: string; password: string; displayName?: string }): Promise<User> {
   const normalizedEmail = normalizeEmail(email);
   const passwordHash = await bcrypt.hash(String(password), PASSWORD_ROUNDS);
   const now = new Date();
@@ -69,14 +55,10 @@ export async function createUser({ email, password, displayName }) {
     [normalizedEmail, passwordHash, String(displayName || '').slice(0, 120), now]
   );
 
-  return /** @type {User} */ (toPublicUser(result.rows[0]));
+  return toPublicUser(result.rows[0]) as User;
 }
 
-/**
- * @param {{email:string,password:string}} params
- * @returns {Promise<User|null>}
- */
-export async function verifyUserCredentials({ email, password }) {
+export async function verifyUserCredentials({ email, password }: { email: string; password: string }): Promise<User | null> {
   const normalizedEmail = normalizeEmail(email);
   const result = await pool.query(
     `SELECT id, email, display_name, password_hash, created_at
@@ -94,11 +76,7 @@ export async function verifyUserCredentials({ email, password }) {
   return toPublicUser(row);
 }
 
-/**
- * @param {{userId:number,userAgent?:string,ipAddress?:string}} params
- * @returns {Promise<AuthSession & {expiresAt: Date}>}
- */
-export async function createSession({ userId, userAgent, ipAddress }) {
+export async function createSession({ userId, userAgent, ipAddress }: { userId: number; userAgent?: string; ipAddress?: string }): Promise<AuthSession & { expiresAt: Date }> {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashSessionToken(token);
   const expiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
@@ -112,11 +90,7 @@ export async function createSession({ userId, userAgent, ipAddress }) {
   return { userId, token, expiresAt };
 }
 
-/**
- * @param {string|undefined|null} token
- * @returns {Promise<User|null>}
- */
-export async function getUserFromSessionToken(token) {
+export async function getUserFromSessionToken(token: string | undefined | null): Promise<User | null> {
   if (!token) return null;
 
   const tokenHash = hashSessionToken(token);
@@ -134,11 +108,7 @@ export async function getUserFromSessionToken(token) {
   return toPublicUser(result.rows[0]);
 }
 
-/**
- * @param {string|undefined|null} token
- * @returns {Promise<void>}
- */
-export async function revokeSessionByToken(token) {
+export async function revokeSessionByToken(token: string | undefined | null): Promise<void> {
   if (!token) return;
 
   const tokenHash = hashSessionToken(token);
