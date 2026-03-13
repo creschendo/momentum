@@ -4,15 +4,17 @@ import fitness from '../modules/fitness';
 import productivity from '../modules/productivity';
 import pomodoro from '../modules/pomodoro';
 import sleep from '../modules/sleep';
+import notes from '../modules/notes';
 
-export const MODULES = [nutrition, productivity, fitness, sleep, pomodoro];
+export const MODULES = [nutrition, productivity, fitness, sleep, pomodoro, notes];
 
 export const MODULE_ROUTE_MAP = {
   nutrition: '/nutrition',
   productivity: '/productivity',
   fitness: '/fitness',
   sleep: '/sleep',
-  pomodoro: '/pomodoro'
+  pomodoro: '/pomodoro',
+  notes: '/notes'
 };
 
 export function getOrdinalSuffix(day) {

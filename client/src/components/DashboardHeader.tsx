@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import ThemeDropdown from './ThemeDropdown';
 
-export default function DashboardHeader({ formattedDateTime, onLogout, sectionMotionProps }) {
+export default function DashboardHeader({ formattedDateTime, onLogout, onSettings, sectionMotionProps }) {
   const { theme, currentTheme, isDark } = useTheme();
   const coveAccentWhite = '#ffffff';
 
@@ -68,6 +68,39 @@ export default function DashboardHeader({ formattedDateTime, onLogout, sectionMo
         </div>
 
         <div style={{ justifySelf: 'end', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={onSettings}
+            style={{
+              padding: '10px 15px',
+              backgroundColor: theme.bgTertiary,
+              color: theme.text,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 200ms ease',
+              fontFamily: 'inherit',
+              boxShadow: `0 2px 8px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = theme.bgSecondary;
+              e.currentTarget.style.borderColor = theme.borderLight;
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, ${isDark ? '0.4' : '0.15'})`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.bgTertiary;
+              e.currentTarget.style.borderColor = theme.border;
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = `0 2px 8px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'})`;
+            }}
+          >
+            Account
+          </button>
           <button
             onClick={onLogout}
             style={{

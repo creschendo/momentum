@@ -6,8 +6,16 @@ import {
   createSession,
   getSessionCookieOptions,
   getUserFromSessionToken,
-  revokeSessionByToken
+  revokeSessionByToken,
+  getUserProfile,
+  updateUserProfile,
+  updateUserEmail,
+  updateUserPassword,
+  deleteUserAccount,
+  listUserSessions,
+  revokeSessionById
 } from './service.js';
+import { requireAuth } from './middleware.js';
 import type { AuthRegisterBody, AuthLoginBody } from '../../types.js';
 
 const router = express.Router();
@@ -107,6 +115,97 @@ router.get('/me', async (req: Request, res: Response) => {
     return res.json({ user });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to get session' });
+  }
+});
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+router.get('/profile', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const profile = await getUserProfile((req as any).user.id);
+    return res.json({ profile });
+  } catch {
+    return res.status(500).json({ error: 'Failed to get profile' });
+  }
+});
+
+router.put('/profile', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { displayName, dateOfBirth, sex, heightCm } = req.body || {};
+    const profile = await updateUserProfile((req as any).user.id, { displayName, dateOfBirth, sex, heightCm });
+    return res.json({ profile });
+  } catch {
+    return res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// ── Account ───────────────────────────────────────────────────────────────────
+
+router.put('/email', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !String(email).includes('@')) return res.status(400).json({ error: 'Valid email is required' });
+    if (!password) return res.status(400).json({ error: 'Current password is required' });
+    const user = await updateUserEmail((req as any).user.id, email, password);
+    return res.json({ user });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'Invalid password') return res.status(401).json({ error: msg });
+    const code = (err as { code?: string })?.code;
+    if (code === '23505') return res.status(409).json({ error: 'Email already in use' });
+    return res.status(500).json({ error: 'Failed to update email' });
+  }
+});
+
+router.put('/password', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords are required' });
+    if (String(newPassword).length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    await updateUserPassword((req as any).user.id, currentPassword, newPassword);
+    return res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'Invalid current password') return res.status(401).json({ error: msg });
+    return res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+router.delete('/account', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+    await deleteUserAccount((req as any).user.id, password);
+    res.clearCookie(SESSION_COOKIE_NAME, { ...getSessionCookieOptions(), maxAge: undefined });
+    return res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'Invalid password') return res.status(401).json({ error: msg });
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+
+router.get('/sessions', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies?.[SESSION_COOKIE_NAME];
+    const sessions = await listUserSessions((req as any).user.id, token);
+    return res.json({ sessions });
+  } catch {
+    return res.status(500).json({ error: 'Failed to list sessions' });
+  }
+});
+
+router.delete('/sessions/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const sessionId = Number(req.params.id);
+    if (!Number.isInteger(sessionId) || sessionId <= 0) return res.status(400).json({ error: 'Invalid session ID' });
+    const revoked = await revokeSessionById((req as any).user.id, sessionId);
+    if (!revoked) return res.status(404).json({ error: 'Session not found' });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: 'Failed to revoke session' });
   }
 });
 

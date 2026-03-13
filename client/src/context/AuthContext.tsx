@@ -14,6 +14,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthUser | null>;
   register: (email: string, password: string, displayName?: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -60,6 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async logout() {
         await authApi.logout();
         setUser(null);
+      },
+      async refreshUser() {
+        try {
+          const data = await authApi.me() as { user?: AuthUser | null };
+          setUser(data?.user || null);
+        } catch {
+          // ignore — user stays as-is
+        }
       }
     }),
     [user, loading]

@@ -13,6 +13,7 @@ import nutritionRouter from './modules/nutrition/index.js';
 import fitnessRouter from './modules/fitness/index.js';
 import productivityRouter from './modules/productivity/index.js';
 import sleepRouter from './modules/sleep/index.js';
+import notesRouter from './modules/notes/index.js';
 import { requireAuth } from './modules/auth/middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +73,7 @@ app.use('/api/nutrition', apiLimiter as unknown as express.RequestHandler, requi
 app.use('/api/fitness', apiLimiter as unknown as express.RequestHandler, requireAuth, fitnessRouter);
 app.use('/api/productivity', apiLimiter as unknown as express.RequestHandler, requireAuth, productivityRouter);
 app.use('/api/sleep', apiLimiter as unknown as express.RequestHandler, requireAuth, sleepRouter);
+app.use('/api/notes', apiLimiter as unknown as express.RequestHandler, requireAuth, notesRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
