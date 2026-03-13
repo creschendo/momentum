@@ -23,7 +23,10 @@ interface DayUpdates {
   name?: string;
 }
 
-// Helper to fetch a split with all its data
+/** Fetches a single split row (verified by userId) and eagerly loads its
+ *  days in ascending day_number order, then populates each day with its
+ *  lifts and cardio entries. Returns null if the split does not exist or
+ *  does not belong to the given user. */
 async function fetchSplitWithDays({ userId, splitId }: { userId: number | string; splitId: number | string }) {
   const splitResult = await pool.query(
     'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits WHERE id = $1 AND user_id = $2',
@@ -64,7 +67,9 @@ async function fetchSplitWithDays({ userId, splitId }: { userId: number | string
   return split;
 }
 
-// Create a new split
+/** Creates a new workout split for the user and inserts one split_days row
+ *  per day (up to daysCount), naming them "Day 1", "Day 2", etc. Returns
+ *  the full split object with an empty lifts and cardio array per day. */
 export async function addSplit({ userId, ...splitData }: { userId: number; name?: string; description?: string; days?: number; daysCount?: number }) {
   const daysCount = Math.max(Number(splitData.days ?? splitData.daysCount ?? 1), 0);
   const now = new Date();
@@ -93,7 +98,9 @@ export async function addSplit({ userId, ...splitData }: { userId: number; name?
   return split;
 }
 
-// Get all splits
+/** Returns all splits belonging to the user, ordered by creation date,
+ *  each fully hydrated with their days, lifts, and cardio via
+ *  fetchSplitWithDays. */
 export async function getSplits({ userId }: { userId: number }) {
   const splitsResult = await pool.query(
     'SELECT id, name, description, days_count as "daysCount", created_at as "createdAt" FROM splits WHERE user_id = $1 ORDER BY created_at ASC',
@@ -105,12 +112,16 @@ export async function getSplits({ userId }: { userId: number }) {
   }));
 }
 
-// Get a single split
+/** Fetches a single split by ID for the given user, fully hydrated with
+ *  its days, lifts, and cardio. Returns null if not found. */
 export async function getSplit({ userId, id }: { userId: number; id: number | string }) {
   return fetchSplitWithDays({ userId, splitId: id });
 }
 
-// Update a split
+/** Updates a split's name, description, and/or day count. When daysCount
+ *  increases, new split_days rows are inserted; when it decreases, excess
+ *  day rows (and their exercises) are deleted. Returns the updated split or
+ *  null if it does not exist. */
 export async function updateSplit({ userId, id, updates }: { userId: number; id: number | string; updates: SplitUpdates }) {
   const split = await getSplit({ userId, id });
   if (!split) return null;
@@ -146,13 +157,16 @@ export async function updateSplit({ userId, id, updates }: { userId: number; id:
   return fetchSplitWithDays({ userId, splitId: id });
 }
 
-// Delete a split
+/** Deletes a split (and all cascade-deleted days, lifts, and cardio) for
+ *  the given user. Returns true if a row was deleted, false if not found. */
 export async function deleteSplit({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM splits WHERE user_id = $1 AND id = $2', [userId, id]);
   return (result.rowCount ?? 0) > 0;
 }
 
-// Add day to split
+/** Appends a new day to an existing split, assigning it the next sequential
+ *  day number. Returns the new day object (with empty lifts and cardio), or
+ *  null if the split does not exist. */
 export async function addDayToSplit({ userId, splitId, dayData }: { userId: number; splitId: number | string; dayData?: { name?: string } }) {
   const split = await getSplit({ userId, id: splitId });
   if (!split) return null;
@@ -173,7 +187,8 @@ export async function addDayToSplit({ userId, splitId, dayData }: { userId: numb
   };
 }
 
-// Update day in split
+/** Updates the name of a day within a split, verifying the day belongs to
+ *  a split owned by the user. Returns the updated day or null if not found. */
 export async function updateDayInSplit({ userId, splitId, dayId, updates }: { userId: number; splitId: number | string; dayId: number | string; updates: DayUpdates }) {
   const result = await pool.query(
     `UPDATE split_days
@@ -195,7 +210,8 @@ export async function updateDayInSplit({ userId, splitId, dayId, updates }: { us
   };
 }
 
-// Remove day from split
+/** Deletes a day (and its cascade-deleted lifts and cardio) from a split,
+ *  verifying ownership. Returns true if deleted, false if not found. */
 export async function removeDayFromSplit({ userId, splitId, dayId }: { userId: number; splitId: number | string; dayId: number | string }) {
   const result = await pool.query(
     `DELETE FROM split_days
@@ -207,7 +223,9 @@ export async function removeDayFromSplit({ userId, splitId, dayId }: { userId: n
   return (result.rowCount ?? 0) > 0;
 }
 
-// Add lift to day
+/** Inserts a strength exercise into a day after verifying the day belongs
+ *  to the authenticated user's split. Returns the new lift row or null if
+ *  the day/split ownership check fails. */
 export async function addLiftToDay({ userId, splitId, dayId, lift }: { userId: number; splitId: number | string; dayId: number | string; lift: LiftData }) {
   const dayCheck = await pool.query(
     `SELECT sd.id
@@ -227,7 +245,9 @@ export async function addLiftToDay({ userId, splitId, dayId, lift }: { userId: n
   return result.rows[0];
 }
 
-// Update lift in day
+/** Updates one or more fields of a lift (exerciseName, sets, reps, weight)
+ *  using COALESCE so omitted fields retain their current value. Verifies
+ *  ownership via a subquery join. Returns the updated lift or null. */
 export async function updateLiftInDay({ userId, splitId, dayId, liftId, updates }: { userId: number; splitId: number | string; dayId: number | string; liftId: number | string; updates: LiftData }) {
   const result = await pool.query(
     `UPDATE lifts SET exercise_name = COALESCE($1, exercise_name), sets = COALESCE($2, sets),
@@ -247,7 +267,8 @@ export async function updateLiftInDay({ userId, splitId, dayId, liftId, updates 
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-// Remove lift from day
+/** Deletes a lift from a day, verifying ownership via a subquery join.
+ *  Returns true if a row was deleted, false if the lift was not found. */
 export async function removeLiftFromDay({ userId, splitId, dayId, liftId }: { userId: number; splitId: number | string; dayId: number | string; liftId: number | string }) {
   const result = await pool.query(
     `DELETE FROM lifts
@@ -264,7 +285,9 @@ export async function removeLiftFromDay({ userId, splitId, dayId, liftId }: { us
   return (result.rowCount ?? 0) > 0;
 }
 
-// Add cardio to day
+/** Inserts a cardio exercise (exerciseName, durationMinutes, intensity) into
+ *  a day after verifying the day belongs to the authenticated user's split.
+ *  Returns the new cardio row or null if the ownership check fails. */
 export async function addCardioToDay({ userId, splitId, dayId, cardio }: { userId: number; splitId: number | string; dayId: number | string; cardio: CardioData }) {
   const dayCheck = await pool.query(
     `SELECT sd.id
@@ -284,7 +307,9 @@ export async function addCardioToDay({ userId, splitId, dayId, cardio }: { userI
   return result.rows[0];
 }
 
-// Update cardio in day
+/** Updates one or more fields of a cardio entry (exerciseName, durationMinutes,
+ *  intensity) using COALESCE to preserve unchanged values. Verifies ownership
+ *  via a subquery join. Returns the updated row or null if not found. */
 export async function updateCardioInDay({ userId, splitId, dayId, cardioId, updates }: { userId: number; splitId: number | string; dayId: number | string; cardioId: number | string; updates: CardioData }) {
   const result = await pool.query(
     `UPDATE cardio SET exercise_name = COALESCE($1, exercise_name), duration_minutes = COALESCE($2, duration_minutes),
@@ -304,7 +329,8 @@ export async function updateCardioInDay({ userId, splitId, dayId, cardioId, upda
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
-// Remove cardio from day
+/** Deletes a cardio entry from a day, verifying ownership via a subquery
+ *  join. Returns true if a row was deleted, false if the entry was not found. */
 export async function removeCardioFromDay({ userId, splitId, dayId, cardioId }: { userId: number; splitId: number | string; dayId: number | string; cardioId: number | string }) {
   const result = await pool.query(
     `DELETE FROM cardio

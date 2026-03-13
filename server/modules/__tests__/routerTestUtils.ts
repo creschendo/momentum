@@ -5,6 +5,9 @@ interface RouteInfo {
   methods: string[];
 }
 
+/** Extracts all registered routes from an Express Router's internal stack
+ *  and returns them as an array of { path, methods[] } objects. Used in
+ *  tests to verify that expected endpoints are registered. */
 export function getRouteMethodsByPath(expressRouter: Router): RouteInfo[] {
   return ((expressRouter as any).stack || [])
     .filter((layer: any) => layer.route)
@@ -14,10 +17,15 @@ export function getRouteMethodsByPath(expressRouter: Router): RouteInfo[] {
     }));
 }
 
+/** Returns true if the given routes array contains an entry matching both
+ *  the specified path and HTTP method (case-sensitive). */
 export function hasRoute(routes: RouteInfo[], path: string, method: string): boolean {
   return routes.some((route) => route.path === path && route.methods.includes(method));
 }
 
+/** Locates and returns the last handler function registered for the given
+ *  HTTP method and path on an Express Router. Throws if no matching route
+ *  is found, making test failures explicit. */
 export function getRouteHandler(expressRouter: Router, method: string, path: string) {
   const layer = ((expressRouter as any).stack || []).find(
     (candidate: any) =>
@@ -34,6 +42,10 @@ export function getRouteHandler(expressRouter: Router, method: string, path: str
   return layer.route.stack[layer.route.stack.length - 1].handle;
 }
 
+/** Creates a minimal mock Express response object with chainable status(),
+ *  json(), end(), cookie(), and clearCookie() methods. Captures all calls
+ *  on the returned object so tests can assert on statusCode, body, and
+ *  cookie interactions without a real HTTP connection. */
 export function createMockRes() {
   return {
     statusCode: 200,
@@ -64,6 +76,9 @@ export function createMockRes() {
   };
 }
 
+/** Executes a route handler with a mock response and the provided mock
+ *  request, then returns the populated mock response for assertion.
+ *  Simplifies testing individual route handlers without spinning up a server. */
 export async function runRoute(handler: (req: unknown, res: unknown) => unknown, req: Record<string, unknown> = {}) {
   const response = createMockRes();
   await handler(req, response);

@@ -3,15 +3,21 @@ import service from './service.js';
 
 const router = express.Router();
 
+/** Extracts the authenticated user's ID from the request object, which is
+ *  attached by the requireAuth middleware before these handlers run. */
 function getUserId(req: Request): number {
   return (req as any).user.id;
 }
 
+/** GET /status — Health check confirming the productivity module is loaded. */
 // GET /api/productivity/status
 router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'productivity', status: 'ok', info: 'Productivity module ready' });
 });
 
+/** GET /events — Returns calendar events for the user ordered by date and
+ *  time. Accepts optional `startDate` and `endDate` (YYYY-MM-DD) query
+ *  params to filter to a specific date range. */
 // GET /api/productivity/events?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 router.get('/events', async (req: Request, res: Response) => {
   try {
@@ -23,6 +29,9 @@ router.get('/events', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /events — Creates a new calendar event. title (non-empty),
+ *  dateKey (YYYY-MM-DD), and time (HH:MM) are all required. description is
+ *  optional. Returns 201 with the created event. */
 // POST /api/productivity/events  body: { title, dateKey, time, description? }
 router.post('/events', async (req: Request, res: Response) => {
   try {
@@ -50,6 +59,9 @@ router.post('/events', async (req: Request, res: Response) => {
   }
 });
 
+/** PATCH /events/:id — Partially updates an event. All body fields are
+ *  optional; dateKey and time are format-validated if present. Returns 404
+ *  if the event is not found or not owned by the user. */
 // PATCH /api/productivity/events/:id  body: { title?, dateKey?, time?, description? }
 router.patch('/events/:id', async (req: Request, res: Response) => {
   try {
@@ -71,6 +83,8 @@ router.patch('/events/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** DELETE /events/:id — Removes an event by ID. Returns 204 on success or
+ *  404 if the event is not found or not owned by the current user. */
 // DELETE /api/productivity/events/:id
 router.delete('/events/:id', async (req: Request, res: Response) => {
   try {
@@ -83,6 +97,8 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** GET /tasks — Returns all tasks for the user ordered newest-first,
+ *  including completion status (done) and any attached notes. */
 // GET /api/productivity/tasks
 router.get('/tasks', async (req: Request, res: Response) => {
   try {
@@ -93,6 +109,8 @@ router.get('/tasks', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /tasks — Creates a new task with the given title (required) and
+ *  optional notes. The task starts with done=false. Returns 201. */
 // POST /api/productivity/tasks  body: { title, notes }
 router.post('/tasks', async (req: Request, res: Response) => {
   try {
@@ -107,6 +125,9 @@ router.post('/tasks', async (req: Request, res: Response) => {
   }
 });
 
+/** PATCH /tasks/:id — Partially updates a task's title, notes, and/or done
+ *  flag. Omitted fields retain their current value. Returns 404 if the
+ *  task is not found. */
 // PATCH /api/productivity/tasks/:id  body: { title?, notes?, done? }
 router.patch('/tasks/:id', async (req: Request, res: Response) => {
   try {
@@ -119,6 +140,8 @@ router.patch('/tasks/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** DELETE /tasks/:id — Removes a task by ID. Returns 204 on success or 404
+ *  if the task is not found or not owned by the current user. */
 // DELETE /api/productivity/tasks/:id
 router.delete('/tasks/:id', async (req: Request, res: Response) => {
   try {

@@ -8,7 +8,8 @@ interface MealFood {
   fat?: number;
 }
 
-// Water entry functions
+/** Inserts a water intake record for the user. Uses the provided ISO
+ *  timestamp or defaults to the current time. Returns the new entry row. */
 async function addWaterEntry({ userId, volumeMl, timestamp }: { userId: number; volumeMl: number; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
@@ -18,6 +19,8 @@ async function addWaterEntry({ userId, volumeMl, timestamp }: { userId: number; 
   return result.rows[0];
 }
 
+/** Returns all water intake entries for the user ordered newest-first.
+ *  Optionally filters to entries at or after the given ISO `since` datetime. */
 async function listEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = 'SELECT id, volume_ml as "volumeMl", timestamp FROM water_entries WHERE user_id = $1';
   const values: (number | Date)[] = [userId];
@@ -32,6 +35,9 @@ async function listEntries({ userId, since }: { userId: number; since?: string }
   return result.rows;
 }
 
+/** Sums water intake (in mL) for the current daily, weekly, or monthly
+ *  period. Calculates the period start relative to now and queries the
+ *  database for the total. Throws for unrecognized period strings. */
 async function sumForPeriod({ userId, period = 'daily' }: { userId: number; period?: string } = { userId: 0 }) {
   const now = new Date();
   let start: Date;
@@ -57,12 +63,16 @@ async function sumForPeriod({ userId, period = 'daily' }: { userId: number; peri
   return { period, start: start.toISOString(), totalMl: total };
 }
 
+/** Deletes every water intake record for the user. Returns a confirmation
+ *  message and the count of deleted rows. */
 async function resetWaterEntries({ userId }: { userId: number }) {
   const result = await pool.query('DELETE FROM water_entries WHERE user_id = $1', [userId]);
   return { message: 'Water entries reset', count: result.rowCount };
 }
 
-// Body weight functions
+/** Inserts or updates a body-weight entry for (userId, entryDate). If a
+ *  record already exists for that date it is overwritten with the new weight
+ *  and note. entryDate defaults to today (YYYY-MM-DD). Returns the row. */
 async function upsertWeightEntry({ userId, weightKg, entryDate, note }: { userId: number; weightKg: number; entryDate?: string; note?: string }) {
   const normalizedDate = entryDate || new Date().toISOString().slice(0, 10);
   const result = await pool.query(
@@ -79,6 +89,8 @@ async function upsertWeightEntry({ userId, weightKg, entryDate, note }: { userId
   return result.rows[0];
 }
 
+/** Returns recent weight entries for the user, newest-first. The limit is
+ *  clamped to the range [1, 365] and defaults to 90. */
 async function getWeightEntries({ userId, limit = 90 }: { userId: number; limit?: number }) {
   const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(365, Number(limit))) : 90;
   const result = await pool.query(
@@ -92,13 +104,16 @@ async function getWeightEntries({ userId, limit = 90 }: { userId: number; limit?
   return result.rows;
 }
 
+/** Fetches weight data points over the last N days (clamped to [7, 365],
+ *  default 30) in ascending date order, then computes summary stats: entry
+ *  count, latest weight, starting weight, and net change in kg. */
 async function getWeightTrend({ userId, days = 30 }: { userId: number; days?: number }) {
   const safeDays = Number.isFinite(days) ? Math.max(7, Math.min(365, Number(days))) : 30;
   const result = await pool.query(
     `SELECT id, weight_kg::float as "weightKg", entry_date::text as "entryDate", note
      FROM weight_entries
      WHERE user_id = $1
-       AND entry_date >= (CURRENT_DATE - ($2::int || ' days')::interval)
+       AND entry_date >= (CURRENT_DATE - ($2 * INTERVAL '1 day'))
      ORDER BY entry_date ASC`,
     [userId, safeDays]
   );
@@ -120,6 +135,8 @@ async function getWeightTrend({ userId, days = 30 }: { userId: number; days?: nu
   };
 }
 
+/** Deletes a single weight entry by ID, scoped to the user for safety.
+ *  Returns true if a row was deleted, false if the entry was not found. */
 async function deleteWeightEntry({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     'DELETE FROM weight_entries WHERE user_id = $1 AND id = $2 RETURNING id',
@@ -128,7 +145,9 @@ async function deleteWeightEntry({ userId, id }: { userId: number; id: number | 
   return (result.rowCount ?? 0) > 0;
 }
 
-// Meal functions
+/** Creates a meal record and inserts each item in the foods array into
+ *  meal_foods. Timestamp defaults to now. Returns the meal with its foods
+ *  array (may be empty if no foods were provided). */
 async function addMeal({ userId, name, foods, timestamp }: { userId: number; name: string; foods?: MealFood[]; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
 
@@ -156,6 +175,9 @@ async function addMeal({ userId, name, foods, timestamp }: { userId: number; nam
   };
 }
 
+/** Fetches all meals for the user with their associated food items via a
+ *  LEFT JOIN and json_agg aggregation. Results are newest-first. Accepts an
+ *  optional `since` ISO timestamp to filter by meal timestamp. */
 async function getMeals({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = `
     SELECT m.id, m.name, m.timestamp,
@@ -183,6 +205,9 @@ async function getMeals({ userId, since }: { userId: number; since?: string } = 
   }));
 }
 
+/** Updates the name and/or food items of an existing meal. When foods are
+ *  provided, all existing meal_foods rows are deleted and replaced. Throws
+ *  if the meal is not found or not owned by the user. */
 async function updateMeal({ userId, id, name, foods }: { userId: number; id: number | string; name?: string; foods?: MealFood[] }) {
   if (name !== undefined) {
     await pool.query('UPDATE meals SET name = $1 WHERE id = $2 AND user_id = $3', [name, id, userId]);
@@ -221,6 +246,9 @@ async function updateMeal({ userId, id, name, foods }: { userId: number; id: num
   };
 }
 
+/** Deletes a meal (and its cascade-deleted meal_foods) by ID scoped to the
+ *  user. Throws if the meal is not found. Returns a confirmation message
+ *  with the deleted meal row. */
 async function deleteMeal({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM meals WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
@@ -229,7 +257,8 @@ async function deleteMeal({ userId, id }: { userId: number; id: number | string 
   return { message: 'Meal deleted', meal: result.rows[0] };
 }
 
-// Food entry functions
+/** Inserts a standalone food entry (not attached to a meal) with its macro
+ *  values. Timestamp defaults to now. Returns the created row. */
 async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, timestamp }: { userId: number; foodName: string; calories?: number; protein?: number; carbs?: number; fat?: number; timestamp?: string }) {
   const ts = timestamp ? new Date(timestamp) : new Date();
   const result = await pool.query(
@@ -239,6 +268,8 @@ async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, t
   return result.rows[0];
 }
 
+/** Returns all standalone food entries for the user ordered newest-first.
+ *  Optionally filters to entries at or after the given ISO `since` datetime. */
 async function getFoodEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
   let query = 'SELECT id, food_name as "foodName", calories, protein, carbs, fat, timestamp FROM food_entries WHERE user_id = $1';
   const values: (number | Date)[] = [userId];
@@ -253,6 +284,8 @@ async function getFoodEntries({ userId, since }: { userId: number; since?: strin
   return result.rows;
 }
 
+/** Deletes a standalone food entry by ID scoped to the user. Throws if the
+ *  entry is not found. Returns a confirmation message with the deleted row. */
 async function deleteFoodEntry({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM food_entries WHERE user_id = $1 AND id = $2 RETURNING *', [userId, id]);
   if (result.rows.length === 0) {
@@ -261,6 +294,9 @@ async function deleteFoodEntry({ userId, id }: { userId: number; id: number | st
   return { message: 'Food entry deleted', entry: result.rows[0] };
 }
 
+/** Aggregates macro totals from meal_foods for the given period (daily,
+ *  weekly, or monthly). Daily returns absolute totals; weekly returns daily
+ *  averages over elapsed days. Throws for unrecognized period strings. */
 async function getMacroSummary({ userId, period = 'daily' }: { userId: number; period?: string } = { userId: 0 }) {
   const now = new Date();
   let start: Date;

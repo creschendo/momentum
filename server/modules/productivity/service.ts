@@ -13,6 +13,9 @@ interface TaskPatch {
   done?: boolean;
 }
 
+/** Inserts a new calendar event into the events table. Title is capped at
+ *  256 chars and description at 2000 chars. Returns the created event row
+ *  with dateKey as a text string and time formatted as HH:MM. */
 async function createEvent({ userId, title, dateKey, time, description }: { userId: number; title: string; dateKey: string; time: string; description?: string }) {
   const now = new Date();
   const result = await pool.query(
@@ -33,6 +36,9 @@ async function createEvent({ userId, title, dateKey, time, description }: { user
   return result.rows[0];
 }
 
+/** Returns all calendar events for the user ordered by date/time ascending.
+ *  When both startDate and endDate are provided, only events within that
+ *  inclusive date range are returned. */
 async function listEvents({ userId, startDate, endDate }: { userId: number; startDate?: string; endDate?: string } = { userId: 0 }) {
   if (startDate && endDate) {
     const result = await pool.query(
@@ -59,6 +65,8 @@ async function listEvents({ userId, startDate, endDate }: { userId: number; star
   return result.rows;
 }
 
+/** Fetches a single event by ID scoped to the user. Returns null if the
+ *  event does not exist or belongs to a different user. */
 async function getEvent({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     `SELECT id, title, description, event_date::text as "dateKey",
@@ -70,6 +78,9 @@ async function getEvent({ userId, id }: { userId: number; id: number | string })
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
+/** Fetches the existing event to merge defaults, then writes the updated
+ *  title, description, date, and time in a single UPDATE. Omitted patch
+ *  fields retain their current value. Returns null if the event is not found. */
 async function updateEvent({ userId, id, patch }: { userId: number; id: number | string; patch: EventPatch }) {
   const event = await getEvent({ userId, id });
   if (!event) return null;
@@ -93,11 +104,16 @@ async function updateEvent({ userId, id, patch }: { userId: number; id: number |
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
+/** Deletes an event by ID scoped to the user. Returns true if a row was
+ *  deleted, false if the event was not found. */
 async function removeEvent({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM events WHERE user_id = $1 AND id = $2', [userId, id]);
   return (result.rowCount ?? 0) > 0;
 }
 
+/** Inserts a new task with the given title and optional notes. Title is
+ *  capped at 256 chars, notes at 2000 chars. The task starts with done=false.
+ *  Returns the created task row. */
 async function createTask({ userId, title, notes }: { userId: number; title: string; notes?: string }) {
   const now = new Date();
   const result = await pool.query(
@@ -107,6 +123,8 @@ async function createTask({ userId, title, notes }: { userId: number; title: str
   return result.rows[0];
 }
 
+/** Returns all tasks for the user ordered newest-first, including title,
+ *  notes, and completion status. */
 async function listTasks({ userId }: { userId: number }) {
   const result = await pool.query(
     'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 ORDER BY created_at DESC',
@@ -115,6 +133,8 @@ async function listTasks({ userId }: { userId: number }) {
   return result.rows;
 }
 
+/** Fetches a single task by ID scoped to the user. Returns null if the
+ *  task does not exist or belongs to a different user. */
 async function getTask({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query(
     'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 AND id = $2',
@@ -123,6 +143,9 @@ async function getTask({ userId, id }: { userId: number; id: number | string }) 
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
+/** Fetches the existing task to merge defaults, then writes the updated
+ *  title, notes, and done flag in a single UPDATE. Omitted patch fields
+ *  retain their current value. Returns null if the task is not found. */
 async function updateTask({ userId, id, patch }: { userId: number; id: number | string; patch: TaskPatch }) {
   const task = await getTask({ userId, id });
   if (!task) return null;
@@ -140,6 +163,8 @@ async function updateTask({ userId, id, patch }: { userId: number; id: number | 
   return result.rows.length > 0 ? result.rows[0] : null;
 }
 
+/** Deletes a task by ID scoped to the user. Returns true if a row was
+ *  deleted, false if the task was not found. */
 async function removeTask({ userId, id }: { userId: number; id: number | string }) {
   const result = await pool.query('DELETE FROM tasks WHERE user_id = $1 AND id = $2', [userId, id]);
   return (result.rowCount ?? 0) > 0;
