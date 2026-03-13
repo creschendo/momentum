@@ -145,3 +145,133 @@ export async function revokeSessionByToken(token: string | undefined | null): Pr
     [tokenHash]
   );
 }
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  displayName: string;
+  dateOfBirth?: string;
+  sex?: string;
+  heightCm?: number;
+  createdAt?: string | Date;
+}
+
+interface ProfileRow extends UserRow {
+  date_of_birth?: string | null;
+  sex?: string | null;
+  height_cm?: string | null;
+}
+
+function toProfileUser(row: ProfileRow): UserProfile {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name || '',
+    createdAt: row.created_at,
+    dateOfBirth: row.date_of_birth ? String(row.date_of_birth).slice(0, 10) : undefined,
+    sex: row.sex || undefined,
+    heightCm: row.height_cm ? Number(row.height_cm) : undefined
+  };
+}
+
+export async function getUserProfile(userId: number): Promise<UserProfile> {
+  const result = await pool.query(
+    'SELECT id, email, display_name, date_of_birth, sex, height_cm, created_at FROM users WHERE id = $1',
+    [userId]
+  );
+  if (!result.rows[0]) throw new Error('User not found');
+  return toProfileUser(result.rows[0]);
+}
+
+export async function updateUserProfile(
+  userId: number,
+  { displayName, dateOfBirth, sex, heightCm }: { displayName?: string; dateOfBirth?: string | null; sex?: string | null; heightCm?: number | null }
+): Promise<UserProfile> {
+  const result = await pool.query(
+    `UPDATE users
+     SET display_name = $2,
+         date_of_birth = $3::date,
+         sex = $4,
+         height_cm = $5::numeric,
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING id, email, display_name, date_of_birth, sex, height_cm, created_at`,
+    [userId, displayName || null, dateOfBirth || null, sex || null, heightCm ?? null]
+  );
+  if (!result.rows[0]) throw new Error('User not found');
+  return toProfileUser(result.rows[0]);
+}
+
+// ── Account ───────────────────────────────────────────────────────────────────
+
+export async function updateUserEmail(userId: number, newEmail: string, password: string): Promise<User> {
+  const check = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  if (!check.rows[0]) throw new Error('User not found');
+  const valid = await bcrypt.compare(String(password), check.rows[0].password_hash);
+  if (!valid) throw new Error('Invalid password');
+
+  const normalizedEmail = normalizeEmail(newEmail);
+  const result = await pool.query(
+    'UPDATE users SET email = $2, updated_at = NOW() WHERE id = $1 RETURNING id, email, display_name, created_at',
+    [userId, normalizedEmail]
+  );
+  return toPublicUser(result.rows[0]) as User;
+}
+
+export async function updateUserPassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {
+  const check = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  if (!check.rows[0]) throw new Error('User not found');
+  const valid = await bcrypt.compare(String(currentPassword), check.rows[0].password_hash);
+  if (!valid) throw new Error('Invalid current password');
+
+  const newHash = await bcrypt.hash(String(newPassword), PASSWORD_ROUNDS);
+  await pool.query('UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1', [userId, newHash]);
+}
+
+export async function deleteUserAccount(userId: number, password: string): Promise<void> {
+  const check = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  if (!check.rows[0]) throw new Error('User not found');
+  const valid = await bcrypt.compare(String(password), check.rows[0].password_hash);
+  if (!valid) throw new Error('Invalid password');
+
+  await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+}
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+
+export interface SessionInfo {
+  id: number;
+  userAgent: string;
+  ipAddress: string;
+  createdAt: Date;
+  isCurrent: boolean;
+}
+
+export async function listUserSessions(userId: number, currentToken: string | undefined): Promise<SessionInfo[]> {
+  const currentHash = currentToken ? hashSessionToken(currentToken) : null;
+  const result = await pool.query(
+    `SELECT id, user_agent, ip_address, created_at, token_hash
+     FROM user_sessions
+     WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    userAgent: row.user_agent || '',
+    ipAddress: row.ip_address || '',
+    createdAt: row.created_at,
+    isCurrent: row.token_hash === currentHash
+  }));
+}
+
+export async function revokeSessionById(userId: number, sessionId: number): Promise<boolean> {
+  const result = await pool.query(
+    `UPDATE user_sessions SET revoked_at = NOW()
+     WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL`,
+    [sessionId, userId]
+  );
+  return (result.rowCount ?? 0) > 0;
+}

@@ -13,7 +13,11 @@ import NutritionModule from './modules/nutrition/NutritionModule';
 import FitnessModule from './modules/fitness/FitnessModule';
 import ProductivityModule from './modules/productivity/ProductivityModule';
 import PomodoroModule from './modules/pomodoro/PomodoroModule';
+import NotesModule from './modules/notes/NotesModule';
 import SleepModule from './modules/sleep/SleepModule';
+import ProfilePage from './pages/ProfilePage';
+import AccountPage from './pages/AccountPage';
+import SecurityPage from './pages/SecurityPage';
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -24,6 +28,7 @@ import useLayout from './hooks/useLayout';
 function AppContent() {
   const { theme, currentTheme, isDark } = useTheme();
   const { user, loading, logout } = useAuth();
+  const handleSettings = () => navigate('/profile');
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
@@ -38,6 +43,7 @@ function AppContent() {
     if (moduleKey === 'productivity') return <ProductivityModule />;
     if (moduleKey === 'sleep') return <SleepModule />;
     if (moduleKey === 'pomodoro') return <PomodoroModule />;
+    if (moduleKey === 'notes') return <NotesModule />;
     return null;
   };
 
@@ -99,6 +105,7 @@ function AppContent() {
     <motion.div
       className="app-root"
       style={{
+        minHeight: '100vh',
         backgroundColor: theme.bg,
         color: theme.text,
         transition: 'all 200ms',
@@ -118,6 +125,7 @@ function AppContent() {
       <DashboardHeader
         formattedDateTime={formattedDateTime}
         onLogout={logout}
+        onSettings={handleSettings}
         sectionMotionProps={sectionMotionProps}
       />
 
@@ -164,6 +172,10 @@ function AppContent() {
           <Route path="/fitness" element={moduleRouteContent('fitness')} />
           <Route path="/sleep" element={moduleRouteContent('sleep')} />
           <Route path="/pomodoro" element={moduleRouteContent('pomodoro')} />
+          <Route path="/notes" element={moduleRouteContent('notes')} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/security" element={<SecurityPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
