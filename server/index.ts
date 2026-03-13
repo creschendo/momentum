@@ -37,6 +37,14 @@ const authLimiter = rateLimit({
   message: { error: 'Too many auth attempts, please try again later.' }
 });
 
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 300 : 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
@@ -60,10 +68,10 @@ app.get('/api/hello', (req, res) => {
 
 // Module routes (modular architecture)
 app.use('/api/auth', authLimiter as unknown as express.RequestHandler, authRouter);
-app.use('/api/nutrition', requireAuth, nutritionRouter);
-app.use('/api/fitness', requireAuth, fitnessRouter);
-app.use('/api/productivity', requireAuth, productivityRouter);
-app.use('/api/sleep', requireAuth, sleepRouter);
+app.use('/api/nutrition', apiLimiter as unknown as express.RequestHandler, requireAuth, nutritionRouter);
+app.use('/api/fitness', apiLimiter as unknown as express.RequestHandler, requireAuth, fitnessRouter);
+app.use('/api/productivity', apiLimiter as unknown as express.RequestHandler, requireAuth, productivityRouter);
+app.use('/api/sleep', apiLimiter as unknown as express.RequestHandler, requireAuth, sleepRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

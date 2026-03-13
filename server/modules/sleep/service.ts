@@ -11,6 +11,9 @@ interface SleepRow {
 
 let sleepTableReadyPromise: Promise<void> | null = null;
 
+/** Lazily creates the sleep_sessions table and its indexes on first call.
+ *  Subsequent calls return the cached promise so the DDL only runs once per
+ *  process. Resets the cached promise on failure so it can be retried. */
 function ensureSleepTableReady(): Promise<void> {
   if (!sleepTableReadyPromise) {
     sleepTableReadyPromise = (async () => {
@@ -36,6 +39,9 @@ function ensureSleepTableReady(): Promise<void> {
   return sleepTableReadyPromise;
 }
 
+/** Maps a raw sleep_sessions database row to the public session shape,
+ *  computing durationHours from the difference between endTime and startTime.
+ *  Returns null for null input. */
 function toSleepSession(row: SleepRow | null) {
   if (!row) return null;
 
@@ -55,6 +61,9 @@ function toSleepSession(row: SleepRow | null) {
   };
 }
 
+/** Ensures the table exists, then inserts a new sleep session. quality is
+ *  clamped to [1, 5] and defaults to 3; notes are capped at 500 chars.
+ *  Returns the created session via toSleepSession (includes durationHours). */
 export async function addSleepSession({ userId, startTime, endTime, quality, notes }: { userId: number; startTime: string; endTime: string; quality?: number; notes?: string }) {
   await ensureSleepTableReady();
   const safeQuality = Math.max(1, Math.min(5, Number(quality) || 3));
@@ -70,6 +79,9 @@ export async function addSleepSession({ userId, startTime, endTime, quality, not
   return toSleepSession(result.rows[0]);
 }
 
+/** Returns the user's sleep sessions ordered newest-first. limit is clamped
+ *  to [1, 120] and defaults to 30. Each row is mapped through toSleepSession
+ *  to include the computed durationHours field. */
 export async function listSleepSessions({ userId, limit = 30 }: { userId: number; limit?: number }) {
   await ensureSleepTableReady();
   const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(120, Number(limit))) : 30;
@@ -86,6 +98,8 @@ export async function listSleepSessions({ userId, limit = 30 }: { userId: number
   return result.rows.map(toSleepSession);
 }
 
+/** Deletes a sleep session by ID scoped to the user. Returns true if a row
+ *  was deleted, false if the session was not found. */
 export async function deleteSleepSession({ userId, id }: { userId: number; id: number | string }) {
   await ensureSleepTableReady();
   const result = await pool.query(
@@ -96,6 +110,10 @@ export async function deleteSleepSession({ userId, id }: { userId: number; id: n
   return (result.rowCount ?? 0) > 0;
 }
 
+/** Fetches all sessions within the last N days (clamped to [3, 90], default
+ *  7) and calculates: session count, average duration in hours, and average
+ *  quality score (1–5). Also includes the most recent session or null if
+ *  there are no sessions in the window. */
 export async function getSleepSummary({ userId, days = 7 }: { userId: number; days?: number }) {
   await ensureSleepTableReady();
   const safeDays = Number.isFinite(days) ? Math.max(3, Math.min(90, Number(days))) : 7;

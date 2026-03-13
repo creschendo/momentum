@@ -3,10 +3,14 @@ import service from './service.js';
 
 const router = express.Router();
 
+/** GET /status — Health check confirming the sleep module is loaded. */
 router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'sleep', status: 'ok', info: 'Sleep module ready' });
 });
 
+/** GET /sessions — Returns the user's sleep sessions, newest-first.
+ *  The `limit` query param (default 30, max 120) controls how many records
+ *  are returned. Each session includes a computed durationHours field. */
 router.get('/sessions', async (req: Request, res: Response) => {
   try {
     const { limit } = req.query;
@@ -20,6 +24,10 @@ router.get('/sessions', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /sessions — Records a sleep session. Requires startTime and endTime
+ *  as ISO datetime strings with endTime strictly after startTime. quality
+ *  (1–5, default 3) and notes are optional. Returns 201 with the session
+ *  including computed durationHours. */
 router.post('/sessions', async (req: Request, res: Response) => {
   try {
     const { startTime, endTime, quality, notes } = req.body || {};
@@ -53,6 +61,8 @@ router.post('/sessions', async (req: Request, res: Response) => {
   }
 });
 
+/** DELETE /sessions/:id — Removes a sleep session by ID. Returns 404 if
+ *  the session is not found or does not belong to the current user. */
 router.delete('/sessions/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -66,6 +76,9 @@ router.delete('/sessions/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** GET /summary — Computes sleep statistics over the last N days (default
+ *  7, clamped to [3, 90]). Returns session count, average duration in hours,
+ *  average quality score, and the most recent session. */
 router.get('/summary', async (req: Request, res: Response) => {
   try {
     const { days } = req.query;

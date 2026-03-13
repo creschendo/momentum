@@ -24,13 +24,17 @@ interface CalorieNinjaResponse {
 const API_KEY = process.env.CALORIENINJAS_API_KEY;
 const BASE = 'https://api.calorieninjas.com/v1';
 
+/** Throws an error if the CALORIENINJAS_API_KEY environment variable is not
+ *  set. Call this at the start of any function that makes an API request. */
 function ensureKeys(): void {
   if (!API_KEY) {
     throw new Error('CalorieNinjas API key not configured. Set CALORIENINJAS_API_KEY in environment.');
   }
 }
 
-// CalorieNinjas nutrition endpoint: GET /nutrition?query=QUERY
+/** Queries the CalorieNinjas /nutrition endpoint with a free-text food query
+ *  and maps the response items to the shared NutritionSearchResult format,
+ *  normalizing field names (e.g. protein_g → nf_protein). */
 async function searchInstant(query: string): Promise<NutritionSearchResult> {
   ensureKeys();
   const url = `${BASE}/nutrition`;
@@ -58,13 +62,18 @@ async function searchInstant(query: string): Promise<NutritionSearchResult> {
   };
 }
 
-// CalorieNinjas doesn't have separate endpoints, so these all use the same search
+/** Alias for searchInstant that satisfies the NaturalLanguageResult type.
+ *  CalorieNinjas uses a single /nutrition endpoint for all query styles, so
+ *  both structured and natural-language queries are handled identically. */
 async function naturalLanguage(query: string): Promise<NaturalLanguageResult> {
   return searchInstant(query);
 }
 
-// Calculate TDEE (Total Daily Energy Expenditure) and BMR
-// Using Mifflin-St Jeor equation (no external API call needed)
+/** Calculates BMR via the Mifflin-St Jeor equation and multiplies by the
+ *  activity_level multiplier to get TDEE. Returns calorie targets for
+ *  maintenance, mild loss (−250 kcal), moderate loss (−500 kcal), and
+ *  extreme loss (−750 kcal, min 1200), plus recommended macros based on
+ *  1.8 g/kg protein with remaining calories split 45/55 carbs/fat. */
 async function calculateTDEE({ age, sex, height_cm, weight_kg, activity_level }: TdeeRequest): Promise<TdeeResult> {
   // Mifflin-St Jeor equation for BMR
   let bmr: number;

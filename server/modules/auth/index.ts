@@ -12,6 +12,8 @@ import type { AuthRegisterBody, AuthLoginBody } from '../../types.js';
 
 const router = express.Router();
 
+/** Extracts the real client IP address from the request, preferring the
+ *  X-Forwarded-For header (set by proxies/load balancers) over req.ip. */
 function getClientIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length > 0) {
@@ -20,6 +22,11 @@ function getClientIp(req: Request): string {
   return req.ip || '';
 }
 
+/** POST /register — Creates a new user account.
+ *  Validates email format and minimum password length (8 chars), then creates
+ *  the user record and immediately opens a session. Returns 201 with the public
+ *  user object and sets the session cookie. Returns 409 if the email is already
+ *  registered. */
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, password, displayName } = (req.body || {}) as AuthRegisterBody;
@@ -49,6 +56,9 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /login — Authenticates an existing user with email and password.
+ *  On success, creates a new session, sets the session cookie, and returns
+ *  the public user object. Returns 401 if credentials are invalid. */
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = (req.body || {}) as AuthLoginBody;
@@ -71,6 +81,9 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /logout — Revokes the current session token and clears the session
+ *  cookie, effectively signing the user out. Safe to call even if no valid
+ *  session exists. */
 router.post('/logout', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.[SESSION_COOKIE_NAME];
@@ -82,6 +95,8 @@ router.post('/logout', async (req: Request, res: Response) => {
   }
 });
 
+/** GET /me — Returns the currently authenticated user based on the session
+ *  cookie. Returns 401 if the session is missing, expired, or revoked. */
 router.get('/me', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.[SESSION_COOKIE_NAME];

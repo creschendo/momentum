@@ -3,15 +3,21 @@ import * as service from './service.js';
 
 const router = express.Router();
 
+/** Extracts the authenticated user's ID from the request object, which is
+ *  populated by the requireAuth middleware prior to reaching these handlers. */
 function getUserId(req: Request): number {
   return (req as any).user.id;
 }
 
+/** GET /status — Health check endpoint confirming the fitness module is
+ *  loaded and ready. */
 // GET /api/fitness/status
 router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'fitness', status: 'ok', info: 'Fitness module ready' });
 });
 
+/** GET /splits — Returns all workout splits for the authenticated user,
+ *  each with its nested days, lifts, and cardio entries. */
 // Splits CRUD
 router.get('/splits', async (req: Request, res: Response) => {
   try {
@@ -22,6 +28,9 @@ router.get('/splits', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /splits — Creates a new workout split. Requires a name and a days
+ *  count; automatically creates the corresponding day rows. Returns 201
+ *  with the new split on success. */
 router.post('/splits', async (req: Request, res: Response) => {
   try {
     const { title, name, days } = req.body;
@@ -36,6 +45,9 @@ router.post('/splits', async (req: Request, res: Response) => {
   }
 });
 
+/** GET /splits/:id — Fetches a single split by ID with its full nested
+ *  hierarchy (days, lifts, cardio). Returns 404 if not found or not owned
+ *  by the current user. */
 router.get('/splits/:id', async (req: Request, res: Response) => {
   try {
     const split = await service.getSplit({ userId: getUserId(req), id: req.params.id });
@@ -46,6 +58,9 @@ router.get('/splits/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** PUT /splits/:id — Updates split fields (name, description, daysCount).
+ *  Adjusting daysCount will insert or delete day rows to match the new
+ *  count. Returns the updated split or 404 if not found. */
 router.put('/splits/:id', async (req: Request, res: Response) => {
   try {
     const split = await service.updateSplit({ userId: getUserId(req), id: req.params.id, updates: req.body });
@@ -56,6 +71,8 @@ router.put('/splits/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** DELETE /splits/:id — Permanently removes the split and all of its
+ *  associated days, lifts, and cardio entries. Returns 404 if not found. */
 router.delete('/splits/:id', async (req: Request, res: Response) => {
   try {
     const deleted = await service.deleteSplit({ userId: getUserId(req), id: req.params.id });
@@ -66,6 +83,9 @@ router.delete('/splits/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** POST /splits/:splitId/days — Appends a new day to an existing split.
+ *  The day is assigned the next sequential day number. Returns 404 if the
+ *  parent split is not found. */
 // Days
 router.post('/splits/:splitId/days', async (req: Request, res: Response) => {
   try {
@@ -77,6 +97,8 @@ router.post('/splits/:splitId/days', async (req: Request, res: Response) => {
   }
 });
 
+/** PUT /splits/:splitId/days/:dayId — Updates the name of an existing day
+ *  within a split. Returns 404 if the day or parent split is not found. */
 router.put('/splits/:splitId/days/:dayId', async (req: Request, res: Response) => {
   try {
     const day = await service.updateDayInSplit({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, updates: req.body });
@@ -87,6 +109,8 @@ router.put('/splits/:splitId/days/:dayId', async (req: Request, res: Response) =
   }
 });
 
+/** DELETE /splits/:splitId/days/:dayId — Removes a day and all its
+ *  associated lifts and cardio from the split. Returns 404 if not found. */
 router.delete('/splits/:splitId/days/:dayId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeDayFromSplit({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId });
@@ -97,6 +121,9 @@ router.delete('/splits/:splitId/days/:dayId', async (req: Request, res: Response
   }
 });
 
+/** POST /splits/:splitId/days/:dayId/lifts — Adds a strength exercise
+ *  (exerciseName, sets, reps, weight) to a day. Verifies the day belongs
+ *  to the authenticated user's split before inserting. */
 // Lifts
 router.post('/splits/:splitId/days/:dayId/lifts', async (req: Request, res: Response) => {
   try {
@@ -108,6 +135,9 @@ router.post('/splits/:splitId/days/:dayId/lifts', async (req: Request, res: Resp
   }
 });
 
+/** PUT /splits/:splitId/days/:dayId/lifts/:liftId — Updates one or more
+ *  fields of a lift (exerciseName, sets, reps, weight). Returns 404 if the
+ *  lift or its parent day/split is not found. */
 router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, res: Response) => {
   try {
     const lift = await service.updateLiftInDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, liftId: req.params.liftId, updates: req.body });
@@ -118,6 +148,8 @@ router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, re
   }
 });
 
+/** DELETE /splits/:splitId/days/:dayId/lifts/:liftId — Removes a lift from
+ *  a day. Returns 404 if the lift or its parent day/split is not found. */
 router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeLiftFromDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, liftId: req.params.liftId });
@@ -128,6 +160,9 @@ router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request,
   }
 });
 
+/** POST /splits/:splitId/days/:dayId/cardio — Adds a cardio exercise
+ *  (exerciseName, durationMinutes, intensity) to a day. Verifies the day
+ *  belongs to the authenticated user's split before inserting. */
 // Cardio
 router.post('/splits/:splitId/days/:dayId/cardio', async (req: Request, res: Response) => {
   try {
@@ -139,6 +174,9 @@ router.post('/splits/:splitId/days/:dayId/cardio', async (req: Request, res: Res
   }
 });
 
+/** PUT /splits/:splitId/days/:dayId/cardio/:cardioId — Updates one or more
+ *  fields of a cardio entry (exerciseName, durationMinutes, intensity).
+ *  Returns 404 if the entry or its parent day/split is not found. */
 router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request, res: Response) => {
   try {
     const cardio = await service.updateCardioInDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, cardioId: req.params.cardioId, updates: req.body });
@@ -149,6 +187,9 @@ router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request,
   }
 });
 
+/** DELETE /splits/:splitId/days/:dayId/cardio/:cardioId — Removes a cardio
+ *  entry from a day. Returns 404 if the entry or its parent day/split is
+ *  not found. */
 router.delete('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request, res: Response) => {
   try {
     const deleted = await service.removeCardioFromDay({ userId: getUserId(req), splitId: req.params.splitId, dayId: req.params.dayId, cardioId: req.params.cardioId });
