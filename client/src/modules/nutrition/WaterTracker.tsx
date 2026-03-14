@@ -1,7 +1,11 @@
+// WaterTracker — animated daily water intake logger.
+// Shows a real-time fill graphic with wave and bubble animations, a circular progress ring,
+// an editable daily goal, and a reset-all confirmation flow.
 import React, { useMemo, useState, useRef } from 'react';
 import useWater from './hooks/useWater';
 import { useTheme } from '../../context/ThemeContext';
 
+/** Represents a single in-flight droplet spawned as a visual feedback animation after each log action. */
 interface Droplet {
   id: number;
   offsetX: number;
@@ -58,6 +62,7 @@ export default function WaterTracker() {
     }
   }
 
+  /** Deletes all water entries for today and closes the confirmation modal. */
   async function handleReset() {
     try {
       await resetEntries();

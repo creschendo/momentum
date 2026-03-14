@@ -1,24 +1,35 @@
+// BMRCalculator — calculates Basal Metabolic Rate (BMR) and Total Daily Energy Expenditure (TDEE)
+// from user inputs (age, sex, height, weight, activity level) using the Mifflin-St Jeor equation.
+// Displays calorie targets for four weight goals and lets the user set a daily goal that
+// persists via CalorieGoalContext across tabs.
 import React, { useState, useEffect } from 'react';
 import { calculateTDEE } from '../../api/nutrition';
 import { useTheme } from '../../context/ThemeContext';
 import { useCalorieGoal } from './context/CalorieGoalContext';
 import type { BmrFormData, GoalKey, TdeeResult } from '../../types/modules';
 
+/** The measurement system used for height and weight inputs. */
 type UnitSystem = 'metric' | 'imperial';
 
+/** A selectable calorie target option derived from the TDEE result. */
 interface GoalOption {
   key: GoalKey;
   label: string;
+  /** Calorie target in kcal/day. */
   value: number;
+  /** Accent color used to highlight the selected goal card. */
   color: string;
+  /** Human-readable description of the expected weekly change (e.g. "1 lb/week"). */
   desc: string;
 }
 
+/** Safe numeric conversion — returns `fallback` when `value` is not a finite number. */
 const toNumber = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+/** Coerces the loosely-typed API TDEE response into the strongly-typed TdeeResult shape. */
 function normalizeTdeeResult(value: Record<string, unknown>): TdeeResult {
   const targets = (value.calorieTargets ?? {}) as Record<string, unknown>;
   const macros = (value.macros ?? {}) as Record<string, unknown>;

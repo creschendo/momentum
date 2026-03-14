@@ -1,11 +1,18 @@
+// Splits — full-featured workout split planner.
+// Supports creating/renaming/deleting splits, adding/reordering training days via drag-and-drop,
+// and managing lifts (exercise name, weight, sets, reps) and cardio entries per day.
+// All state is managed by useSplits; this component owns only UI-local state (forms, expand/collapse, drag).
 import React, { useEffect, useRef, useState } from 'react';
 import useSplits from './hooks/useSplits';
 import { useTheme } from '../../context/ThemeContext';
 
+/** Allowed cardio machine options shown in the cardio type dropdown. */
 const CARDIO_TYPES = ['Treadmill', 'Bike', 'Stairmaster', 'Rowing Machine', 'Elliptical'];
 
+/** Accepts either a numeric database id or a temporary string key. */
 type EntityId = string | number;
 
+/** A single lift (strength exercise) entry as returned by or sent to the API. */
 type LiftItem = {
   id?: EntityId;
   exerciseName?: string;
@@ -15,6 +22,7 @@ type LiftItem = {
   [key: string]: unknown;
 };
 
+/** A single cardio entry as returned by or sent to the API. */
 type CardioItem = {
   id?: EntityId;
   exerciseName?: string;
@@ -23,6 +31,7 @@ type CardioItem = {
   [key: string]: unknown;
 };
 
+/** A training day belonging to a split, containing optional lifts and cardio. */
 type DayItem = {
   id: EntityId;
   name?: string;
@@ -30,6 +39,7 @@ type DayItem = {
   cardio?: CardioItem[];
 };
 
+/** A workout split, containing an ordered list of training days. */
 type SplitItem = {
   id: EntityId;
   name?: string;
@@ -37,6 +47,7 @@ type SplitItem = {
   days?: DayItem[];
 };
 
+/** Controlled-form state for adding or editing a lift entry. */
 type LiftForm = {
   name: string;
   weight: string;
@@ -44,18 +55,23 @@ type LiftForm = {
   reps: string | number;
 };
 
+/** Controlled-form state for adding or editing a cardio entry. */
 type CardioForm = {
   exerciseName: string;
   durationMinutes: string | number;
   intensity: string;
 };
 
+/** Tracks which day is being dragged and which split it belongs to. */
 type DraggedDayState = {
   day: DayItem;
   splitId: EntityId;
 };
 
+/** Converts any EntityId to a plain string for use as a React key or object key. */
 const toKey = (id: EntityId): string => String(id);
+
+/** Parses `value` as an integer, returning `fallback` if the result is not a finite number. */
 const toInteger = (value: string | number | undefined, fallback: number): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -119,6 +135,7 @@ export default function Splits() {
     };
   }, [deleteConfirmSplitId]);
 
+  /** Creates a new split with an auto-generated name and zero days. */
   const handleCreateSplit = async () => {
     const splitNumber = splits.length + 1;
     const splitName = `new split ${splitNumber}`;
@@ -129,6 +146,7 @@ export default function Splits() {
     }
   };
 
+  /** Deletes a day, clears the reorder cache for the split, and collapses the day panel if it was open. */
   const handleDeleteDay = async (splitId: EntityId, dayId: EntityId) => {
     try {
       await deleteDay(splitId, dayId);
@@ -146,6 +164,7 @@ export default function Splits() {
     }
   };
 
+  /** Appends a new day to the split with an auto-numbered name and expands the split panel. */
   const handleAddDayToSplit = async (split: SplitItem) => {
     try {
       const nextDayNumber = (split.days?.length || 0) + 1;
@@ -161,11 +180,13 @@ export default function Splits() {
     }
   };
 
+  /** Enters inline-edit mode for a split title. */
   const handleStartEditSplit = (split: SplitItem) => {
     setEditingSplitId(split.id);
     setEditingSplitTitle(split.title || '');
   };
 
+  /** Saves the edited split title and exits inline-edit mode. */
   const handleSaveSplit = async (splitId: EntityId) => {
     if (!editingSplitTitle.trim()) return;
     try {
@@ -177,11 +198,13 @@ export default function Splits() {
     }
   };
 
+  /** Enters inline-edit mode for a day name. */
   const handleStartEditDay = (day: DayItem) => {
     setEditingDayKey(day.id);
     setEditingDayName(day.name || '');
   };
 
+  /** Saves the edited day name and exits inline-edit mode. */
   const handleSaveDay = async (splitId: EntityId, dayId: EntityId) => {
     if (!editingDayName.trim()) return;
     try {
@@ -193,6 +216,7 @@ export default function Splits() {
     }
   };
 
+  /** Validates and submits the add-lift form, then resets the form fields and clears the active operation. */
   const handleAddLift = async (splitId: EntityId, dayId: EntityId, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formKey = `${splitId}-${dayId}`;
@@ -218,6 +242,7 @@ export default function Splits() {
     }
   };
 
+  /** Saves the in-place edits for a lift and exits edit mode. */
   const handleUpdateLift = async (splitId: EntityId, dayId: EntityId, liftId: EntityId) => {
     if (!editingLift) return;
     try {
@@ -234,6 +259,7 @@ export default function Splits() {
     }
   };
 
+  /** Deletes a lift and clears the active operation state. */
   const handleDeleteLift = async (splitId: EntityId, dayId: EntityId, liftId: EntityId) => {
     try {
       await deleteLift(splitId, dayId, liftId);
@@ -243,6 +269,7 @@ export default function Splits() {
     }
   };
 
+  /** Submits the add-cardio form with defaults for any empty fields, then resets the form. */
   const handleAddCardio = async (splitId: EntityId, dayId: EntityId, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formKey = `${splitId}-${dayId}`;
@@ -261,6 +288,7 @@ export default function Splits() {
     }
   };
 
+  /** Saves the in-place edits for a cardio entry and exits edit mode. */
   const handleUpdateCardio = async (splitId: EntityId, dayId: EntityId, cardioId: EntityId) => {
     if (!editingCardio) return;
     try {
@@ -276,6 +304,7 @@ export default function Splits() {
     }
   };
 
+  /** Deletes a cardio entry and clears the active operation state. */
   const handleDeleteCardio = async (splitId: EntityId, dayId: EntityId, cardioId: EntityId) => {
     try {
       await deleteCardio(splitId, dayId, cardioId);
@@ -285,11 +314,13 @@ export default function Splits() {
     }
   };
 
+  /** Reads a single field from the keyed lift form, returning `defaultValue` if the form is uninitialised. */
   const getLiftFormValue = (splitId: EntityId, dayId: EntityId, field: keyof LiftForm, defaultValue: string | number) => {
     const formKey = `${splitId}-${dayId}`;
     return liftForms[formKey]?.[field] ?? defaultValue;
   };
 
+  /** Updates a single field in the keyed lift form, preserving all other field values. */
   const setLiftFormValue = (splitId: EntityId, dayId: EntityId, field: keyof LiftForm, value: string | number) => {
     const formKey = `${splitId}-${dayId}`;
     setLiftForms({
@@ -301,11 +332,13 @@ export default function Splits() {
     });
   };
 
+  /** Reads a single field from the keyed cardio form, returning `defaultValue` if the form is uninitialised. */
   const getCardioFormValue = (splitId: EntityId, dayId: EntityId, field: keyof CardioForm, defaultValue: string | number) => {
     const formKey = `${splitId}-${dayId}`;
     return cardioForms[formKey]?.[field] ?? defaultValue;
   };
 
+  /** Updates a single field in the keyed cardio form, preserving all other field values. */
   const setCardioFormValue = (splitId: EntityId, dayId: EntityId, field: keyof CardioForm, value: string | number) => {
     const formKey = `${splitId}-${dayId}`;
     setCardioForms({

@@ -1,10 +1,18 @@
+// useTasks — hook managing the full task list for the Tasks component (fetch, create, toggle, delete).
 import { useCallback, useEffect, useState } from 'react';
-import { getTasks, createTask, patchTask, deleteTask, type Task } from '../../../api/productivity';
+import { getTasks, createTask, patchTask, deleteTask, type Task } from '../../../../api/productivity';
 
+/** Extracts a string error message from any thrown value. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Provides task list state and actions.
+ * - New tasks are optimistically prepended to the list on creation.
+ * - `toggleDone` patches only the `done` field via PATCH and updates the item in-place.
+ * - `remove` deletes and filters from local state immediately.
+ */
 export default function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(false);

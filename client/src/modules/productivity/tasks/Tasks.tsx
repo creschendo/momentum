@@ -1,7 +1,9 @@
+// Tasks — task list UI component. Delegates all API state management to useTasks.
+// Supports adding tasks (title + optional notes), toggling completion, and deletion.
 import React, { useState } from 'react';
 import useTasks from './hooks/useTasks';
-import { useTheme } from '../../context/ThemeContext';
-import type { Task } from '../../api/productivity';
+import { useTheme } from '../../../context/ThemeContext';
+import type { Task } from '../../../api/productivity';
 
 export default function Tasks() {
   const { theme } = useTheme();

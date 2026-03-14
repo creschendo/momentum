@@ -1,11 +1,24 @@
+// useFoods — hook managing food search, meal composition, meal CRUD, and macro summaries for FoodLogger.
 import { useEffect, useState, useCallback } from 'react';
 import { searchFoods, postMeal, getFoodSummary, getMeals, updateMeal, deleteMeal, type FoodEntry } from '../../../api/nutrition';
 import type { FoodsState, Meal } from '../../../types/modules';
 
+/** Extracts a string error message from any thrown value. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
+/**
+ * Provides food logger state and actions.
+ *
+ * Meal composition flow:
+ *   1. `search(query)` → populates `searchResults`
+ *   2. `addFoodToCurrentMeal(food)` → stages items in `currentMeal`
+ *   3. `saveMeal(name)` → persists or updates the meal, then clears the staging area
+ *
+ * Editing an existing meal: call `startEditingMeal(meal)` to pre-populate the staging area,
+ * then `saveMeal(name)` to save via PATCH instead of POST.
+ */
 export default function useFoods() {
   const [searchResults, setSearchResults] = useState<FoodsState['searchResults']>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -130,6 +143,7 @@ export default function useFoods() {
     }
   }, [fetchAll]);
 
+  /** Switches the summary period and immediately re-fetches the summary without reloading the meal list. */
   const changePeriod = useCallback((newPeriod: FoodsState['period']): void => {
     setPeriod(newPeriod);
     void fetchSummary(newPeriod);

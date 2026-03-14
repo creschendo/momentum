@@ -15,13 +15,13 @@ import ProductivityModule from './modules/productivity/ProductivityModule';
 import PomodoroModule from './modules/pomodoro/PomodoroModule';
 import NotesModule from './modules/notes/NotesModule';
 import SleepModule from './modules/sleep/SleepModule';
-import ProfilePage from './pages/ProfilePage';
-import AccountPage from './pages/AccountPage';
-import SecurityPage from './pages/SecurityPage';
+import ProfilePage from './settings/ProfilePage';
+import AccountPage from './settings/AccountPage';
+import SecurityPage from './settings/SecurityPage';
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { fadeIn, fadeInUp } from './motion/presets';
+import { fadeIn, fadeInUp } from './components/motion/presets';
 import useClock from './hooks/useClock';
 import useLayout from './hooks/useLayout';
 

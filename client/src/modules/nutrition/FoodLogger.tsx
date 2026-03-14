@@ -1,3 +1,6 @@
+// FoodLogger — food search, meal composition, and macro tracking component.
+// Wraps useFoods to provide a 3-step flow: search → stage foods in a named meal → save.
+// Displays per-period macro summaries as progress rings relative to the active calorie goal.
 import React, { useState } from 'react';
 import useFoods from './hooks/useFoods';
 import { useTheme } from '../../context/ThemeContext';
@@ -5,6 +8,7 @@ import { useCalorieGoal } from './context/CalorieGoalContext';
 import type { FoodEntry } from '../../api/nutrition';
 import type { Meal } from '../../types/modules';
 
+/** A single food item returned by the nutrition API search. */
 interface SearchFood {
   food_name: string;
   serving_weight_grams?: number;
@@ -14,10 +18,15 @@ interface SearchFood {
   nf_total_fat?: number;
 }
 
+/** Top-level shape of the food search API response. */
 interface SearchResults {
   common: SearchFood[];
 }
 
+/**
+ * Per-gram macro rates cached on a staged meal item so that portion edits
+ * can rescale calories/protein/carbs/fat without a new API call.
+ */
 interface NutritionBasis {
   caloriesPerGram: number;
   proteinPerGram: number;
@@ -25,12 +34,18 @@ interface NutritionBasis {
   fatPerGram: number;
 }
 
+/**
+ * A food entry currently staged in the meal composition area.
+ * Extends FoodEntry with the canonical base name and cached NutritionBasis
+ * used for on-the-fly portion rescaling.
+ */
 interface MealFood extends FoodEntry {
   baseName?: string;
   servingGrams?: number;
   nutritionBasis?: NutritionBasis;
 }
 
+/** Macro/calorie aggregate returned by the food summary endpoint for a given period. */
 interface FoodSummary {
   avgCalories?: number;
   totalCalories?: number;
@@ -44,6 +59,7 @@ interface FoodSummary {
   days?: number;
 }
 
+/** Props for the inline SVG circular macro progress ring. */
 interface ProgressRingProps {
   value: number;
   max: number;
@@ -51,6 +67,7 @@ interface ProgressRingProps {
   size?: number;
 }
 
+/** Safe numeric conversion — returns `fallback` when `value` is not a finite number. */
 const toNumber = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -101,12 +118,14 @@ export default function FoodLogger() {
   const searchResultHoverBg = isDark ? theme.bgSecondary : '#f8fafc';
   const mealsDropdownHighlight = currentTheme === 'cove' ? 'rgba(255, 255, 255, 0.55)' : theme.borderLight;
 
+  /** Extracts the gram value embedded in a food name like "Chicken Breast (120g)" → 120. Falls back to 100g. */
   const getServingFromFoodName = (foodName: string) => {
     const match = String(foodName || '').match(/\((\d+(?:\.\d+)?)g\)/);
     const value = Number(match?.[1] || '100');
     return Number.isFinite(value) && value > 0 ? value : 100;
   };
 
+  /** Returns cached per-gram macro rates for a staged meal food, computing them on first access. */
   const getNutritionBasis = (food: MealFood | null | undefined): NutritionBasis => {
     if (food?.nutritionBasis) return food.nutritionBasis;
     const servingGrams = Number(food?.servingGrams) > 0 ? Number(food?.servingGrams) : getServingFromFoodName(food?.foodName || '');
@@ -119,6 +138,7 @@ export default function FoodLogger() {
     };
   };
 
+  /** Rescales all macro values for a staged food to a new serving size in grams. */
   const buildFoodFromBasis = (food: MealFood, grams: number): MealFood => {
     const basis = getNutritionBasis(food);
     const baseName = food?.baseName || String(food?.foodName || '').replace(/\s*\(\d+(?:\.\d+)?g\)/, '');
@@ -176,6 +196,7 @@ export default function FoodLogger() {
     }
   }
 
+  /** Selects a food from the search results and pre-fills the serving size field. */
   function selectFood(food: SearchFood) {
     setSelectedFood(food);
     setServingSize(String(food.serving_weight_grams || 100));
@@ -218,10 +239,11 @@ export default function FoodLogger() {
             setServingSize('100');
   }
 
+  /** Persists the staged meal (POST or PATCH depending on whether an existing meal is being edited). */
   async function handleSaveMeal(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!mealName.trim() || currentMeal.length === 0) return;
-    
+
     try {
       await saveMeal(mealName);
     } catch (err) {

@@ -1,3 +1,5 @@
+// SleepModule — page for logging sleep sessions and viewing 7-day recovery stats.
+// Manages its own API state directly (no dedicated hook). Loads sessions and summary in parallel.
 import React, { useEffect, useMemo, useState } from 'react';
 import ModuleContainer from '../../components/ModuleContainer';
 import { useTheme } from '../../context/ThemeContext';
@@ -8,11 +10,16 @@ import {
   getSleepSummary
 } from '../../api/sleep';
 
+/** Converts a Date object to the `YYYY-MM-DDTHH:MM` string format required by datetime-local inputs. */
 function toDatetimeLocalInputValue(date) {
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * Returns sensible default start/end times for the log form: yesterday at 11:00 PM → today at 7:30 AM.
+ * Memoized on mount so the defaults don't shift if the component re-renders close to midnight.
+ */
 function getDefaultSleepWindow() {
   const end = new Date();
   end.setHours(7, 30, 0, 0);
@@ -39,6 +46,7 @@ export default function SleepModule() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  /** Loads the 20 most recent sessions and 7-day summary in parallel. Pass `silent: true` to skip the loading state. */
   const loadData = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     setError('');
@@ -61,6 +69,7 @@ export default function SleepModule() {
     loadData();
   }, []);
 
+  /** Submits the log form, converts datetime-local strings to ISO 8601, and refreshes data on success. */
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -82,6 +91,7 @@ export default function SleepModule() {
     }
   };
 
+  /** Deletes a session by ID and silently refreshes the list. */
   const handleDelete = async (id) => {
     try {
       await deleteSleepSession(id);

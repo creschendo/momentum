@@ -1,3 +1,6 @@
+// Sleep API — logging sleep sessions and retrieving aggregated sleep summaries.
+
+/** Input shape for recording a new sleep session. quality is 1–10; notes are optional. */
 export interface SleepSessionInput {
   startTime: string;
   endTime: string;
@@ -5,6 +8,7 @@ export interface SleepSessionInput {
   notes?: string;
 }
 
+/** A persisted sleep session returned by the server, including computed duration. */
 export interface SleepSession {
   id: number | string;
   startTime: string;
@@ -15,12 +19,14 @@ export interface SleepSession {
   durationHours?: number;
 }
 
+/** Returns the most recent sleep sessions for the authenticated user. Defaults to the last 30. */
 export async function getSleepSessions({ limit = 30 }: { limit?: number } = {}): Promise<SleepSession[]> {
   const res = await fetch(`/api/sleep/sessions?limit=${encodeURIComponent(limit)}`);
   if (!res.ok) throw new Error('Failed to fetch sleep sessions');
   return res.json() as Promise<SleepSession[]>;
 }
 
+/** Records a new sleep session. Throws with the server's error message on failure. */
 export async function createSleepSession({ startTime, endTime, quality, notes }: SleepSessionInput): Promise<SleepSession> {
   const res = await fetch('/api/sleep/sessions', {
     method: 'POST',
@@ -36,6 +42,7 @@ export async function createSleepSession({ startTime, endTime, quality, notes }:
   return res.json() as Promise<SleepSession>;
 }
 
+/** Deletes a sleep session by ID. */
 export async function deleteSleepSession(id: number | string): Promise<{ ok: boolean }> {
   const res = await fetch(`/api/sleep/sessions/${encodeURIComponent(id)}`, {
     method: 'DELETE'
@@ -49,6 +56,7 @@ export async function deleteSleepSession(id: number | string): Promise<{ ok: boo
   return res.json() as Promise<{ ok: boolean }>;
 }
 
+/** Returns aggregated sleep stats (avg duration, avg quality, etc.) over the last N days. Defaults to 7. */
 export async function getSleepSummary({ days = 7 }: { days?: number } = {}): Promise<Record<string, unknown>> {
   const res = await fetch(`/api/sleep/summary?days=${encodeURIComponent(days)}`);
   if (!res.ok) throw new Error('Failed to fetch sleep summary');

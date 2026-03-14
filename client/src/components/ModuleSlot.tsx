@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { popoverTransition, staggerItem } from '../motion/presets';
+import { popoverTransition, staggerItem } from './motion/presets';
 import { MODULE_ROUTE_MAP } from '../utils/moduleHelpers';
 import ErrorBoundary from './ErrorBoundary';
 
