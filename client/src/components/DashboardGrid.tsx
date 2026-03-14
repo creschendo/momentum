@@ -1,7 +1,36 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { staggerContainer } from '../motion/presets';
+import type { NavigateFunction } from 'react-router-dom';
+import { staggerContainer } from './motion/presets';
 import ModuleSlot from './ModuleSlot';
+import { useTheme } from '../context/ThemeContext';
+
+interface DashboardGridProps {
+  layout: (string | null)[];
+  moduleSpans: Record<string, number>;
+  draggedModule: string | null;
+  dragOverQuadrant: number | null;
+  addMenuIndex: number | null;
+  setAddMenuIndex: (index: number | null) => void;
+  removeConfirmIndex: number | null;
+  setRemoveConfirmIndex: (index: number | null) => void;
+  isCoveredSlot: (layout: (string | null)[], spans: Record<string, number>, index: number) => boolean;
+  handleDragStart: (e: React.DragEvent, moduleKey: string) => void;
+  handleDragOver: (e: React.DragEvent, quadrantIndex: number) => void;
+  handleDragLeave: () => void;
+  handleDrop: (e: React.DragEvent, targetIndex: number) => void;
+  handleDragEnd: () => void;
+  handleToggleExpand: (index: number) => void;
+  handleRemoveModule: (quadrantIndex: number) => void;
+  handleAddModule: (quadrantIndex: number, moduleKey: string) => void;
+  remainingModules: string[];
+  moduleTitleByKey: Record<string, string>;
+  renderModule: (moduleKey: string | null) => React.ReactNode;
+  navigate: NavigateFunction;
+  theme: ReturnType<typeof useTheme>['theme'];
+  isDark: boolean;
+  prefersReducedMotion: boolean | null;
+}
 
 export default function DashboardGrid({
   layout,
@@ -28,7 +57,7 @@ export default function DashboardGrid({
   theme,
   isDark,
   prefersReducedMotion
-}) {
+}: DashboardGridProps) {
   return (
     <motion.div
       className="module-grid"

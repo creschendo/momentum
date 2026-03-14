@@ -1,8 +1,11 @@
+// NotesModule — full CRUD notes page. Manages its own API state directly (no dedicated hook).
+// Supports creating, editing, and deleting notes, plus live client-side search across title and content.
 import React, { useEffect, useRef, useState } from 'react';
 import ModuleContainer from '../../components/ModuleContainer';
 import { useTheme } from '../../context/ThemeContext';
 import { createNote, deleteNote, getNotes, updateNote, Note } from '../../api/notes';
 
+/** Maximum number of characters shown in the note list preview before truncating with '…'. */
 const MAX_PREVIEW_LENGTH = 120;
 
 export default function NotesModule() {
@@ -22,6 +25,7 @@ export default function NotesModule() {
 
   const titleRef = useRef<HTMLInputElement>(null);
 
+  /** Fetches all notes from the API. Pass `silent: true` to skip the loading spinner (used after mutations). */
   const loadNotes = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     setError('');
@@ -37,12 +41,14 @@ export default function NotesModule() {
 
   useEffect(() => { loadNotes(); }, []);
 
+  /** Clears the compose form and exits edit mode. */
   const resetForm = () => {
     setTitle('');
     setContent('');
     setEditingId(null);
   };
 
+  /** Submits the compose form — creates a new note or updates the one being edited. */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -63,6 +69,7 @@ export default function NotesModule() {
     }
   };
 
+  /** Populates the form with the selected note's data and focuses the title input for editing. */
   const handleEdit = (note: Note) => {
     setTitle(note.title);
     setContent(note.content);
@@ -70,6 +77,7 @@ export default function NotesModule() {
     titleRef.current?.focus();
   };
 
+  /** Deletes a note by ID and removes it from local state. Also resets the form if the deleted note was being edited. */
   const handleDelete = async (id: number) => {
     setError('');
     try {
@@ -81,6 +89,7 @@ export default function NotesModule() {
     }
   };
 
+  // Filter notes client-side against the search query — only shown when there are more than 2 notes.
   const filtered = query.trim()
     ? notes.filter(
         (n) =>

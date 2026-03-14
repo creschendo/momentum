@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MODULES } from '../utils/moduleHelpers';
 
+type Layout = (string | null)[];
+type Spans = Record<string, number>;
+
 export default function useLayout() {
-  const DEFAULT_LAYOUT = ['nutrition', 'productivity', 'fitness', null];
+  const DEFAULT_LAYOUT: Layout = ['nutrition', 'productivity', 'fitness', null];
 
-  const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
 
-  const normalizeLayout = (value) => {
+  const normalizeLayout = (value: unknown): Layout => {
     if (!Array.isArray(value) || value.length === 0) {
       return [...DEFAULT_LAYOUT];
     }
-    const next = value.map((item) => (typeof item === 'string' || item === null ? item : null));
+    const next: Layout = value.map((item) => (typeof item === 'string' || item === null ? item : null));
     if (next.length < 4) {
       while (next.length < 4) next.push(null);
     }
@@ -20,7 +24,7 @@ export default function useLayout() {
     return next;
   };
 
-  const [layout, setLayout] = useState(() => {
+  const [layout, setLayout] = useState<Layout>(() => {
     const saved = localStorage.getItem('module-layout');
     if (saved) {
       try {
@@ -32,24 +36,24 @@ export default function useLayout() {
     return [...DEFAULT_LAYOUT];
   });
 
-  const [moduleSpans, setModuleSpans] = useState(() => {
+  const [moduleSpans, setModuleSpans] = useState<Spans>(() => {
     const saved = localStorage.getItem('module-spans');
     if (!saved) return {};
     try {
-      const parsed = JSON.parse(saved);
+      const parsed: unknown = JSON.parse(saved);
       if (!isPlainObject(parsed)) return {};
       return Object.fromEntries(
         Object.entries(parsed).filter(([key, value]) => typeof key === 'string' && value === 2)
-      );
+      ) as Spans;
     } catch {
       return {};
     }
   });
 
-  const [draggedModule, setDraggedModule] = useState(null);
-  const [dragOverQuadrant, setDragOverQuadrant] = useState(null);
-  const [removeConfirmIndex, setRemoveConfirmIndex] = useState(null);
-  const [addMenuIndex, setAddMenuIndex] = useState(null);
+  const [draggedModule, setDraggedModule] = useState<string | null>(null);
+  const [dragOverQuadrant, setDragOverQuadrant] = useState<number | null>(null);
+  const [removeConfirmIndex, setRemoveConfirmIndex] = useState<number | null>(null);
+  const [addMenuIndex, setAddMenuIndex] = useState<number | null>(null);
 
   useEffect(() => {
     localStorage.setItem('module-layout', JSON.stringify(layout));
@@ -59,17 +63,18 @@ export default function useLayout() {
     localStorage.setItem('module-spans', JSON.stringify(moduleSpans));
   }, [moduleSpans]);
 
-  const isCoveredSlot = (slots, spans, index) => {
+  const isCoveredSlot = (slots: Layout, spans: Spans, index: number): boolean => {
     if (index % 2 === 0) return false;
     const leftModule = slots[index - 1];
     return !!leftModule && spans[leftModule] === 2;
   };
 
-  const isAvailableSlot = (slots, spans, index) => slots[index] === null && !isCoveredSlot(slots, spans, index);
+  const isAvailableSlot = (slots: Layout, spans: Spans, index: number): boolean =>
+    slots[index] === null && !isCoveredSlot(slots, spans, index);
 
-  const compactLayoutState = (slots, spans) => {
+  const compactLayoutState = (slots: Layout, spans: Spans): { layout: Layout; spans: Spans } => {
     const normalized = normalizeLayout(slots);
-    const modulesInOrder = [];
+    const modulesInOrder: string[] = [];
 
     for (let i = 0; i < normalized.length; i += 1) {
       if (isCoveredSlot(normalized, spans, i)) continue;
@@ -78,13 +83,13 @@ export default function useLayout() {
     }
 
     const presentModuleKeys = new Set(modulesInOrder);
-    const sanitizedSpans = Object.fromEntries(
+    const sanitizedSpans: Spans = Object.fromEntries(
       Object.entries(spans).filter(([key, value]) => presentModuleKeys.has(key) && value === 2)
     );
 
-    let compacted = Array.from({ length: Math.max(4, normalized.length) }, () => null);
+    let compacted: Layout = Array.from({ length: Math.max(4, normalized.length) }, () => null);
 
-    const findFirstFitIndex = (span) => {
+    const findFirstFitIndex = (span: number): number => {
       if (span === 2) {
         for (let i = 0; i < compacted.length; i += 2) {
           if (compacted[i] === null && compacted[i + 1] === null) return i;
@@ -119,13 +124,13 @@ export default function useLayout() {
     return { layout: normalizeLayout(compacted), spans: sanitizedSpans };
   };
 
-  const applyLayoutState = (nextLayout, nextSpans) => {
+  const applyLayoutState = (nextLayout: Layout, nextSpans: Spans): void => {
     const compacted = compactLayoutState(nextLayout, nextSpans);
     setLayout(compacted.layout);
     setModuleSpans(compacted.spans);
   };
 
-  const insertModuleAtIndex = (slots, moduleKey, insertIndex) => {
+  const insertModuleAtIndex = (slots: Layout, moduleKey: string, insertIndex: number): Layout => {
     let next = [...slots];
     let emptyIndex = next.indexOf(null, insertIndex);
 
@@ -142,22 +147,22 @@ export default function useLayout() {
     return next;
   };
 
-  const handleDragStart = (e, moduleKey) => {
-    if (e.target !== e.currentTarget && e.target.draggable) return;
+  const handleDragStart = (e: React.DragEvent, moduleKey: string): void => {
+    if (e.target !== e.currentTarget && (e.target as HTMLElement).draggable) return;
     setDraggedModule(moduleKey);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e, quadrantIndex) => {
+  const handleDragOver = (e: React.DragEvent, quadrantIndex: number): void => {
     if (draggedModule === null) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverQuadrant(quadrantIndex);
   };
 
-  const handleDragLeave = () => setDragOverQuadrant(null);
+  const handleDragLeave = (): void => setDragOverQuadrant(null);
 
-  const handleDrop = (e, targetQuadrantIndex) => {
+  const handleDrop = (e: React.DragEvent, targetQuadrantIndex: number): void => {
     e.preventDefault();
     if (draggedModule === null) return;
     if (isCoveredSlot(layout, moduleSpans, targetQuadrantIndex)) return;
@@ -182,12 +187,12 @@ export default function useLayout() {
     setRemoveConfirmIndex(null);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (): void => {
     setDraggedModule(null);
     setDragOverQuadrant(null);
   };
 
-  const handleRemoveModule = (quadrantIndex) => {
+  const handleRemoveModule = (quadrantIndex: number): void => {
     if (isCoveredSlot(layout, moduleSpans, quadrantIndex)) return;
 
     const newLayout = [...layout];
@@ -201,7 +206,7 @@ export default function useLayout() {
     setRemoveConfirmIndex(null);
   };
 
-  const handleAddModule = (quadrantIndex, moduleKey) => {
+  const handleAddModule = (quadrantIndex: number, moduleKey: string): void => {
     if (isCoveredSlot(layout, moduleSpans, quadrantIndex)) return;
     const newLayout = [...layout];
     newLayout[quadrantIndex] = moduleKey;
@@ -209,14 +214,14 @@ export default function useLayout() {
     setAddMenuIndex(null);
   };
 
-  const handleStretchModule = (index) => {
+  const handleStretchModule = (index: number): void => {
     const moduleKey = layout[index];
     if (!moduleKey) return;
 
     let newLayout = normalizeLayout(layout);
     const rowStart = index % 2 === 0 ? index : index - 1;
     const rowEnd = rowStart + 1;
-    const displacedModules = [];
+    const displacedModules: string[] = [];
 
     newLayout[index] = null;
 
@@ -239,14 +244,14 @@ export default function useLayout() {
     setRemoveConfirmIndex(null);
   };
 
-  const handleCollapseModule = (moduleKey) => {
+  const handleCollapseModule = (moduleKey: string): void => {
     if (!moduleSpans[moduleKey]) return;
     const nextSpans = { ...moduleSpans };
     delete nextSpans[moduleKey];
     applyLayoutState([...layout], nextSpans);
   };
 
-  const handleToggleExpand = (index) => {
+  const handleToggleExpand = (index: number): void => {
     const moduleKey = layout[index];
     if (!moduleKey) return;
     if (moduleSpans[moduleKey] === 2) {
@@ -258,7 +263,7 @@ export default function useLayout() {
 
   const allModuleKeys = useMemo(() => MODULES.map((m) => m.key), []);
   const remainingModules = allModuleKeys.filter((key) => !layout.includes(key));
-  const moduleTitleByKey = MODULES.reduce((acc, m) => {
+  const moduleTitleByKey = MODULES.reduce<Record<string, string>>((acc, m) => {
     acc[m.key] = m.title;
     return acc;
   }, {});

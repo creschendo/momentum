@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
-import { popoverTransition } from '../motion/presets';
+import { popoverTransition } from './motion/presets';
 import { getThemeIcon } from '../utils/moduleHelpers';
 
 export default function ThemeDropdown() {

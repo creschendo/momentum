@@ -1,3 +1,5 @@
+// NutritionModule — tabbed container for the four nutrition sub-features.
+// Wraps everything in CalorieGoalProvider so that FoodLogger and BMRCalculator share the same calorie goal state.
 import React, { useState } from 'react';
 import ModuleContainer from '../../components/ModuleContainer';
 import WaterTracker from './WaterTracker';
@@ -22,6 +24,7 @@ export default function NutritionModule() {
     { key: 'bmr', label: 'BMR Calculator' }
   ];
 
+  /** Returns the active tab's component. Using a function keeps the JSX clean and avoids mounting all four tabs at once. */
   const renderTabContent = () => {
     if (activeTab === 'water') return <WaterTracker />;
     if (activeTab === 'weight') return <WeightTracker />;

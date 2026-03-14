@@ -1,5 +1,9 @@
+// Auth API — session management, user registration/login, profile, account settings, and active sessions.
+// All requests rely on the session cookie set by the server; no explicit token handling is needed client-side.
+
 type AuthApiError = Error & { status?: number };
 
+/** Core user identity returned by the server after authentication. */
 export interface AuthUser {
   id: number;
   email: string;
@@ -7,10 +11,15 @@ export interface AuthUser {
   createdAt?: string;
 }
 
+/** Wrapper returned by login, register, and me endpoints. */
 export interface AuthPayload {
   user: AuthUser;
 }
 
+/**
+ * Safely parses a JSON response body, returning null for empty or malformed bodies.
+ * Prevents unhandled parse errors when the server returns a non-JSON error response.
+ */
 async function safeJson<T>(res: Response): Promise<T | null> {
   const text = await res.text();
   if (!text) return null;
@@ -21,6 +30,7 @@ async function safeJson<T>(res: Response): Promise<T | null> {
   }
 }
 
+/** Fetches the currently authenticated user from the active session. Throws if unauthenticated. */
 export async function me(): Promise<AuthPayload> {
   const res = await fetch('/api/auth/me');
   const data = await safeJson<{ error?: string } & Partial<AuthPayload>>(res);
@@ -32,6 +42,7 @@ export async function me(): Promise<AuthPayload> {
   return data as AuthPayload;
 }
 
+/** Authenticates with email and password, establishing a server-side session. */
 export async function login(email: string, password: string): Promise<AuthPayload> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
@@ -43,6 +54,7 @@ export async function login(email: string, password: string): Promise<AuthPayloa
   return data as AuthPayload;
 }
 
+/** Creates a new user account and returns the authenticated session payload. */
 export async function register(email: string, password: string, displayName: string): Promise<AuthPayload> {
   const res = await fetch('/api/auth/register', {
     method: 'POST',
@@ -54,6 +66,7 @@ export async function register(email: string, password: string, displayName: str
   return data as AuthPayload;
 }
 
+/** Destroys the current session on the server and clears the session cookie. */
 export async function logout(): Promise<{ ok: boolean }> {
   const res = await fetch('/api/auth/logout', { method: 'POST' });
   const data = await safeJson<{ error?: string; ok?: boolean }>(res);
@@ -63,6 +76,7 @@ export async function logout(): Promise<{ ok: boolean }> {
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 
+/** Extended user profile with physical attributes used for health calculations (e.g. TDEE). */
 export interface UserProfile {
   id: number;
   email: string;
@@ -73,6 +87,7 @@ export interface UserProfile {
   createdAt?: string;
 }
 
+/** Retrieves the full profile for the authenticated user. */
 export async function getProfile(): Promise<UserProfile> {
   const res = await fetch('/api/auth/profile');
   const data = await safeJson<{ error?: string; profile?: UserProfile }>(res);
@@ -80,6 +95,7 @@ export async function getProfile(): Promise<UserProfile> {
   return data!.profile!;
 }
 
+/** Updates one or more profile fields for the authenticated user. */
 export async function updateProfile(profile: Partial<Pick<UserProfile, 'displayName' | 'dateOfBirth' | 'sex' | 'heightCm'>>): Promise<UserProfile> {
   const res = await fetch('/api/auth/profile', {
     method: 'PUT',
@@ -93,6 +109,7 @@ export async function updateProfile(profile: Partial<Pick<UserProfile, 'displayN
 
 // ── Account ───────────────────────────────────────────────────────────────────
 
+/** Changes the account email. Requires current password for verification. */
 export async function updateEmail(email: string, password: string): Promise<AuthUser> {
   const res = await fetch('/api/auth/email', {
     method: 'PUT',
@@ -104,6 +121,7 @@ export async function updateEmail(email: string, password: string): Promise<Auth
   return data!.user!;
 }
 
+/** Changes the account password after verifying the current one. */
 export async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
   const res = await fetch('/api/auth/password', {
     method: 'PUT',
@@ -114,6 +132,7 @@ export async function updatePassword(currentPassword: string, newPassword: strin
   if (!res.ok) throw new Error(data?.error || 'Failed to update password');
 }
 
+/** Permanently deletes the authenticated user's account. Requires password confirmation. */
 export async function deleteAccount(password: string): Promise<void> {
   const res = await fetch('/api/auth/account', {
     method: 'DELETE',
@@ -126,6 +145,7 @@ export async function deleteAccount(password: string): Promise<void> {
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
+/** Metadata for an active login session, used to display and manage connected devices. */
 export interface SessionInfo {
   id: number;
   userAgent: string;
@@ -134,6 +154,7 @@ export interface SessionInfo {
   isCurrent: boolean;
 }
 
+/** Returns all active sessions for the authenticated user, including the current one. */
 export async function getSessions(): Promise<SessionInfo[]> {
   const res = await fetch('/api/auth/sessions');
   const data = await safeJson<{ error?: string; sessions?: SessionInfo[] }>(res);
@@ -141,6 +162,7 @@ export async function getSessions(): Promise<SessionInfo[]> {
   return data!.sessions!;
 }
 
+/** Revokes a specific session by ID, immediately signing out that device. */
 export async function revokeSession(id: number): Promise<void> {
   const res = await fetch(`/api/auth/sessions/${id}`, { method: 'DELETE' });
   const data = await safeJson<{ error?: string }>(res);

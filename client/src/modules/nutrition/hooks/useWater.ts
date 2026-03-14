@@ -1,11 +1,14 @@
+// useWater — hook managing water intake entries and daily summary for the WaterTracker component.
 import { useEffect, useState, useCallback } from 'react';
 import { getWaterEntries, getWaterSummary, postWater, resetWaterEntries, type WaterEntry } from '../../../api/nutrition';
 import type { WaterState, WaterSummary } from '../../../types/modules';
 
+/** Extracts a string error message from any thrown value. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
+/** Coerces the loosely-typed API summary response into the strongly-typed WaterSummary shape. */
 function normalizeWaterSummary(value: Record<string, unknown>): WaterSummary {
   return {
     period: String(value.period ?? 'daily'),
@@ -14,6 +17,14 @@ function normalizeWaterSummary(value: Record<string, unknown>): WaterSummary {
   };
 }
 
+/**
+ * Provides water entry state and actions.
+ * - `entries`: all entries for the current period
+ * - `summary`: aggregated totals (totalMl, period, start)
+ * - `addEntry`: logs a new intake and refreshes
+ * - `refreshSummary`: re-fetches the summary for a different period without reloading entries
+ * - `resetEntries`: deletes all entries and refreshes
+ */
 export default function useWater() {
   const [entries, setEntries] = useState<WaterState['entries']>([]);
   const [summary, setSummary] = useState<WaterSummary | null>(null);

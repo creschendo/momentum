@@ -1,29 +1,42 @@
+// WeightTracker — logs body weight entries, plots a trend line via TrendGraph, and shows
+// change/latest stats for a user-selectable window of 30, 90, or 180 days.
+// Supports both kg and lb display units; all values are stored in kg and converted on render.
 import React, { useMemo, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import useWeight from './hooks/useWeight';
 import type { WeightTrend } from '../../types/modules';
 
+/** Conversion factor: multiply kg by this value to get pounds. */
 const KG_TO_LB = 2.2046226218;
 
+/** Display unit for weight values shown to the user. */
 type WeightUnit = 'kg' | 'lb';
 
+/** Converts a kg value to the display unit (returns kg unchanged when unit is 'kg'). */
 function toDisplayWeight(weightKg: number, unit: WeightUnit): number {
   const kg = Number(weightKg);
   return unit === 'lb' ? kg * KG_TO_LB : kg;
 }
 
+/** Converts a user-entered value in the active display unit back to kg for storage. */
 function toKg(weightValue: number | string, unit: WeightUnit): number {
   const value = Number(weightValue);
   return unit === 'lb' ? value / KG_TO_LB : value;
 }
 
+/** Props for the SVG trend line chart. */
 interface TrendGraphProps {
   points: WeightTrend['points'];
   theme: ReturnType<typeof useTheme>['theme'];
   unit: WeightUnit;
+  /** Optional goal weight in kg — rendered as a dashed reference line when provided. */
   goalKg: number | null;
 }
 
+/**
+ * Renders an SVG polyline chart of weight data points over the trend window.
+ * Includes axis lines, a goal reference line, and per-point tooltip titles.
+ */
 function TrendGraph({ points, theme, unit, goalKg }: TrendGraphProps) {
   const width = 520;
   const height = 220;
@@ -118,6 +131,7 @@ export default function WeightTracker() {
   const minInput = unit === 'lb' ? '44' : '20';
   const maxInput = unit === 'lb' ? '882' : '400';
 
+  /** Converts the form value to kg and persists it, then clears the weight and note fields. */
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const value = Number(weightKg);

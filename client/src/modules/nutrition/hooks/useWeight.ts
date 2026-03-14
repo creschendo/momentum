@@ -1,11 +1,14 @@
+// useWeight — hook managing body weight entries and trend analysis for the WeightTracker component.
 import { useCallback, useEffect, useState } from 'react';
 import { deleteWeightEntry, getWeightEntries, getWeightTrend, postWeight, type WeightEntry } from '../../../api/nutrition';
 import type { WeightState, WeightTrend } from '../../../types/modules';
 
+/** Extracts a string error message from any thrown value. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
+/** Coerces the loosely-typed API trend response into the strongly-typed WeightTrend shape. */
 function normalizeTrend(value: Record<string, unknown>): WeightTrend {
   const stats = (value.stats ?? {}) as Record<string, unknown>;
   const points = Array.isArray(value.points) ? value.points : [];
@@ -21,12 +24,21 @@ function normalizeTrend(value: Record<string, unknown>): WeightTrend {
   };
 }
 
+/** Initial trend state used before the first fetch completes to avoid null checks. */
 const EMPTY_TREND: WeightTrend = {
   days: 30,
   points: [],
   stats: { count: 0, latestKg: null, startKg: null, changeKg: 0 }
 };
 
+/**
+ * Provides weight entry state and actions.
+ * - `entries`: up to 90 most recent entries (≈3 months)
+ * - `trend`: computed stats and data points for the active window
+ * - `windowDays`: the currently selected trend window (default 30)
+ * - `saveEntry` / `removeEntry`: mutate and refresh
+ * - `changeWindow`: switches the trend window and re-fetches
+ */
 export default function useWeight() {
   const [entries, setEntries] = useState<WeightState['entries']>([]);
   const [trend, setTrend] = useState<WeightTrend>(EMPTY_TREND);

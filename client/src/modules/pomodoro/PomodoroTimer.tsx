@@ -1,8 +1,11 @@
+// PomodoroTimer — self-contained countdown timer with configurable work/break durations and an SVG progress ring.
+// When the timer reaches zero it automatically switches mode (work → break or break → work) and stops.
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 
 type TimerMode = 'work' | 'break';
 
+/** Formats a total second count as MM:SS for display inside the progress ring. */
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;

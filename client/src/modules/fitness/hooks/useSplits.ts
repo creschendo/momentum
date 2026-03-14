@@ -1,11 +1,19 @@
+// useSplits — hook managing the full split/day/lift/cardio tree for the Splits component.
+// All mutations update local state immediately to avoid full re-fetches after every change.
 import { useState, useEffect } from 'react';
 import * as fitnessApi from '../../../api/fitness';
 import type { FitnessDay, FitnessSplit } from '../../../api/fitness';
 
+/** Extracts a string error message from any thrown value. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
+/**
+ * Provides the workout split tree and all CRUD actions.
+ * State is kept as a flat array of FitnessSplit objects — nested days, lifts, and cardio are
+ * updated immutably via map/filter on the splits array after each successful API call.
+ */
 export default function useSplits() {
   const [splits, setSplits] = useState<FitnessSplit[]>([]);
   const [loading, setLoading] = useState<boolean>(false);

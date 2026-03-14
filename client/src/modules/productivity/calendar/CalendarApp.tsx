@@ -1,31 +1,38 @@
+// CalendarApp — fully client-side calendar with day, week, and month views.
+// Events are stored in local component state (not persisted to the server).
+// Supports adding, editing, and deleting events via inline popovers.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../../context/ThemeContext';
 
 type ViewMode = 'day' | 'week' | 'month';
 
+/** An in-memory calendar event. Events are not persisted — state resets on page reload. */
 interface CalendarEvent {
   id: string;
   title: string;
-  dateKey: string;
+  dateKey: string;  // 'YYYY-MM-DD'
   hour: number;
   minute: number;
-  timeLabel: string;
+  timeLabel: string;  // locale-formatted time string shown in the UI
   description: string;
 }
 
+/** Form state used when editing an existing event in the inline popover. */
 interface EditingEventForm {
   title: string;
   dateKey: string;
-  time: string;
+  time: string;  // '24h HH:MM' format for the time input
   description: string;
 }
 
+/** Decomposed 12-hour time parts for the add-event modal's three-part time picker. */
 interface AddEventTimeParts {
   hour12: string;
   minute: string;
   meridiem: 'AM' | 'PM';
 }
 
+/** Props for the reusable day/week/month tab button. */
 interface ViewButtonProps {
   active: boolean;
   onClick: () => void;
@@ -39,34 +46,39 @@ const VIEW_OPTIONS = [
   { key: 'day', label: 'Daily' },
   { key: 'week', label: 'Weekly' },
   { key: 'month', label: 'Monthly' }
-];
+] as const;
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+/** Returns a copy of date with the time zeroed to midnight. */
 function startOfDay(date: Date): Date {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
   return next;
 }
 
+/** Returns a new Date offset by `amount` days from the given date. */
 function addDays(date: Date, amount: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + amount);
   return next;
 }
 
+/** Returns the Sunday that begins the week containing the given date. */
 function startOfWeek(date: Date): Date {
   const start = startOfDay(date);
   const day = start.getDay();
   return addDays(start, -day);
 }
 
+/** Returns the first day of the month containing the given date. */
 function startOfMonth(date: Date): Date {
   const next = startOfDay(date);
   next.setDate(1);
   return next;
 }
 
+/** Formats a date as 'YYYY-MM-DD' — used as the stable key for grouping events by day. */
 function formatDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -74,6 +86,7 @@ function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Returns a locale-formatted string like "Monday, June 3" for the calendar header. */
 function formatDayLabel(date: Date): string {
   return date.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -82,6 +95,7 @@ function formatDayLabel(date: Date): string {
   });
 }
 
+/** Returns a locale-formatted string like "June 2025" for the month-view header. */
 function formatMonthLabel(date: Date): string {
   return date.toLocaleDateString(undefined, {
     month: 'long',
@@ -1018,7 +1032,7 @@ export default function CalendarApp() {
                   <select
                     className="minimal-select"
                     value={addEventTimeParts.meridiem}
-                    onChange={(e) => updateAddEventTime({ meridiem: e.target.value })}
+                    onChange={(e) => { const v = e.target.value; if (v === 'AM' || v === 'PM') updateAddEventTime({ meridiem: v }); }}
                     style={{ width: '100%', padding: '8px 8px', borderRadius: 6, border: `1px solid ${theme.border}`, backgroundColor: theme.bgSecondary, color: theme.text, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}
                   >
                     <option value="AM">AM</option>
