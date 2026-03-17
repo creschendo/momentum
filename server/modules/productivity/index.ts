@@ -25,7 +25,8 @@ router.get('/events', async (req: Request, res: Response) => {
     const list = await service.listEvents({ userId: getUserId(req), startDate: startDate as string | undefined, endDate: endDate as string | undefined });
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -55,7 +56,8 @@ router.post('/events', async (req: Request, res: Response) => {
     });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -79,7 +81,8 @@ router.patch('/events/:id', async (req: Request, res: Response) => {
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -93,7 +96,8 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -105,7 +109,8 @@ router.get('/tasks', async (req: Request, res: Response) => {
     const list = await service.listTasks({ userId: getUserId(req) });
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -121,7 +126,8 @@ router.post('/tasks', async (req: Request, res: Response) => {
     const created = await service.createTask({ userId: getUserId(req), title, notes });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -136,7 +142,8 @@ router.patch('/tasks/:id', async (req: Request, res: Response) => {
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -150,7 +157,8 @@ router.delete('/tasks/:id', async (req: Request, res: Response) => {
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

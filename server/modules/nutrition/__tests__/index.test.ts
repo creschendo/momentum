@@ -59,7 +59,7 @@ describe('nutrition router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'Error: invalid period' });
+    expect(res.body).toEqual({ error: 'invalid period' });
   });
 
   it('returns 400 for meal creation without foods array', async () => {
