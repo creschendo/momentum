@@ -45,11 +45,13 @@ Each feature is split across client and server:
 - Server: `server/modules/<module>/index.js` exports an Express router mounted at `/api/<module>`.
 - Client: `client/src/modules/<module>/` contains UI, hooks, and module registration used by the dashboard.
 
-Example modules
+Modules
 
 - `nutrition` — water, foods, meals, weight tracking, BMR/TDEE
 - `fitness` — splits, days, lifts, cardio
 - `productivity` — tasks and calendar events
+- `sleep` — sleep session logging
+- `notes` — freeform notes
 
 To add a module:
 
@@ -88,7 +90,7 @@ npm --prefix client run dev
 
 Notes:
 
-- Protected module APIs require auth: `/api/nutrition`, `/api/fitness`, `/api/productivity`.
+- Protected module APIs require auth: `/api/nutrition`, `/api/fitness`, `/api/productivity`, `/api/sleep`, `/api/notes`.
 - Auth endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
 
 Nutrition external API
@@ -114,6 +116,7 @@ Local scripts
 - `npm --prefix client run dev` — client only (vite)
 - `npm run test` — run Vitest in watch mode
 - `npm run test:run` — run full test suite once (CI-friendly)
+- `npm run typecheck` — typecheck both client and server
 - `npm run start` — start server (serves built client if present)
 - `npm run db:init` (root forwards to `server`) — applies `server/schema.sql`
 - `npm run seed:user` (root forwards to `server`) — seed test user
