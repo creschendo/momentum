@@ -24,7 +24,8 @@ router.get('/splits', async (req: Request, res: Response) => {
     const splits = await service.getSplits({ userId: getUserId(req) });
     res.json(splits);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -41,7 +42,8 @@ router.post('/splits', async (req: Request, res: Response) => {
     const split = await service.addSplit({ userId: getUserId(req), name: splitName, daysCount: Number(days) });
     res.status(201).json(split);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -54,7 +56,8 @@ router.get('/splits/:id', async (req: Request, res: Response) => {
     if (!split) return res.status(404).json({ error: 'Split not found' });
     res.json(split);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -67,7 +70,8 @@ router.put('/splits/:id', async (req: Request, res: Response) => {
     if (!split) return res.status(404).json({ error: 'Split not found' });
     res.json(split);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -79,7 +83,8 @@ router.delete('/splits/:id', async (req: Request, res: Response) => {
     if (!deleted) return res.status(404).json({ error: 'Split not found' });
     res.json({ message: 'Split deleted' });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -93,7 +98,8 @@ router.post('/splits/:splitId/days', async (req: Request, res: Response) => {
     if (!day) return res.status(404).json({ error: 'Split not found' });
     res.status(201).json(day);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -105,7 +111,8 @@ router.put('/splits/:splitId/days/:dayId', async (req: Request, res: Response) =
     if (!day) return res.status(404).json({ error: 'Day not found' });
     res.json(day);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -117,7 +124,8 @@ router.delete('/splits/:splitId/days/:dayId', async (req: Request, res: Response
     if (!deleted) return res.status(404).json({ error: 'Day not found' });
     res.json({ message: 'Day deleted' });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -131,7 +139,8 @@ router.post('/splits/:splitId/days/:dayId/lifts', async (req: Request, res: Resp
     if (!lift) return res.status(404).json({ error: 'Split or day not found' });
     res.status(201).json(lift);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -144,7 +153,8 @@ router.put('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request, re
     if (!lift) return res.status(404).json({ error: 'Lift not found' });
     res.json(lift);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -156,7 +166,8 @@ router.delete('/splits/:splitId/days/:dayId/lifts/:liftId', async (req: Request,
     if (!deleted) return res.status(404).json({ error: 'Lift not found' });
     res.json({ message: 'Lift deleted' });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -170,7 +181,8 @@ router.post('/splits/:splitId/days/:dayId/cardio', async (req: Request, res: Res
     if (!cardio) return res.status(404).json({ error: 'Split or day not found' });
     res.status(201).json(cardio);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -183,7 +195,8 @@ router.put('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Request,
     if (!cardio) return res.status(404).json({ error: 'Cardio session not found' });
     res.json(cardio);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -196,7 +209,8 @@ router.delete('/splits/:splitId/days/:dayId/cardio/:cardioId', async (req: Reque
     if (!deleted) return res.status(404).json({ error: 'Cardio session not found' });
     res.json({ message: 'Cardio session deleted' });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

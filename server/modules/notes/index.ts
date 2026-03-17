@@ -18,7 +18,8 @@ router.get('/', async (req: Request, res: Response) => {
     const list = await service.listNotes({ userId: getUserId(req) });
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -32,7 +33,8 @@ router.post('/', async (req: Request, res: Response) => {
     const created = await service.createNote({ userId: getUserId(req), title, content });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -45,7 +47,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -57,7 +60,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
