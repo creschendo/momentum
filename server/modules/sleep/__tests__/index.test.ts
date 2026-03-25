@@ -34,7 +34,7 @@ describe('sleep router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'endTime must be after startTime' });
+    expect(res.body).toEqual({ error: 'endTime: endTime must be after startTime' });
   });
 
   it('returns sleep summary payload from /summary', async () => {
@@ -69,7 +69,8 @@ describe('sleep router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'Invalid date format' });
+    expect(res.body).toEqual({ error: 'startTime: Invalid date format' });
+
     expect(addSleepSpy).not.toHaveBeenCalled();
   });
 

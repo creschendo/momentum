@@ -32,7 +32,7 @@ describe('nutrition router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'volumeMl must be a positive number' });
+    expect(res.body).toEqual({ error: 'volumeMl: volumeMl must be a positive number' });
   });
 
   it('returns food summary from /foods/summary', async () => {
@@ -70,7 +70,7 @@ describe('nutrition router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'name and foods array required' });
+    expect(res.body).toEqual({ error: 'foods: Invalid input: expected array, received null' });
   });
 
   it('returns 404 when deleting a missing weight entry', async () => {

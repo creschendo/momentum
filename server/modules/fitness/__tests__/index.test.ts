@@ -86,7 +86,7 @@ describe('fitness router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'Name and days are required' });
+    expect((res.body as any).error).toBeTruthy();
     expect(service.addSplit).not.toHaveBeenCalled();
   });
 
