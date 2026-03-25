@@ -29,3 +29,12 @@ jobs:
 
       - name: Run tests
         run: npm run test:run
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build client
+        run: npm --prefix client run build
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high

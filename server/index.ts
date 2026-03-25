@@ -8,6 +8,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import pinoHttp from 'pino-http';
+import logger from './logger.js';
 import authRouter from './modules/auth/index.js';
 import nutritionRouter from './modules/nutrition/index.js';
 import fitnessRouter from './modules/fitness/index.js';
@@ -49,6 +51,10 @@ const apiLimiter = rateLimit({
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
+app.use(pinoHttp({
+  logger,
+  redact: ['req.headers.cookie', 'req.headers.authorization']
+}));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin(origin, callback) {
@@ -63,7 +69,7 @@ app.use(cookieParser() as unknown as express.RequestHandler);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
-app.get('/api/hello', (req, res) => {
+app.get('/api/hello', (_req, res) => {
   res.json({ message: 'Hello from Express!' });
 });
 
@@ -79,11 +85,11 @@ app.use('/api/notes', apiLimiter as unknown as express.RequestHandler, requireAu
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
-  app.get('*', (req, res) => {
+  app.get('*', (_req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
 
 app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+  logger.info(`Server listening on http://localhost:${PORT}`);
 });

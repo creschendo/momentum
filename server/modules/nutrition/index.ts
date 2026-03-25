@@ -30,7 +30,7 @@ router.post('/water', async (req: Request, res: Response) => {
     const entry = await service.addWaterEntry({ userId: getUserId(req), volumeMl: Number(volumeMl), timestamp });
     res.status(201).json(entry);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -46,7 +46,7 @@ router.get('/water/entries', async (req: Request, res: Response) => {
     const list = await service.listEntries({ userId: getUserId(req), since: since as string | undefined });
     res.json(list);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -73,7 +73,7 @@ router.delete('/water/reset', async (req: Request, res: Response) => {
     const result = await service.resetWaterEntries({ userId: getUserId(req) });
     res.json(result);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -98,7 +98,7 @@ router.post('/weight', async (req: Request, res: Response) => {
     });
     res.status(201).json(created);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -116,7 +116,7 @@ router.get('/weight/entries', async (req: Request, res: Response) => {
     });
     res.json(entries);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -134,7 +134,7 @@ router.get('/weight/trend', async (req: Request, res: Response) => {
     });
     res.json(trend);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -151,7 +151,7 @@ router.delete('/weight/:id', async (req: Request, res: Response) => {
     }
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -167,7 +167,7 @@ router.get('/search', async (req: Request, res: Response) => {
     const results = await calorieninjas.searchInstant(String(q));
     res.json(results);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -182,7 +182,7 @@ router.post('/foods', async (req: Request, res: Response) => {
     const entry = await service.addFoodEntry({ userId: getUserId(req), foodName, calories, protein, carbs, fat, timestamp });
     res.status(201).json(entry);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -196,7 +196,7 @@ router.get('/foods', async (req: Request, res: Response) => {
     const entries = await service.getFoodEntries({ userId: getUserId(req), since: since as string | undefined });
     res.json(entries);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -224,7 +224,7 @@ router.get('/foods/summary', async (req: Request, res: Response) => {
     const summary = await service.getMacroSummary({ userId: getUserId(req), period: String(period) });
     res.json(summary);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -243,7 +243,7 @@ router.post('/meals', async (req: Request, res: Response) => {
     const meal = await service.addMeal({ userId: getUserId(req), name, foods, timestamp });
     res.status(201).json(meal);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -257,7 +257,7 @@ router.get('/meals', async (req: Request, res: Response) => {
     const meals = await service.getMeals({ userId: getUserId(req), since: since as string | undefined });
     res.json(meals);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

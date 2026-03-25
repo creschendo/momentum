@@ -20,7 +20,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
     });
     res.json(sessions);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `sleep ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -58,7 +58,7 @@ router.post('/sessions', async (req: Request, res: Response) => {
 
     res.status(201).json(created);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `sleep ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -74,7 +74,7 @@ router.delete('/sessions/:id', async (req: Request, res: Response) => {
     }
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `sleep ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -91,7 +91,7 @@ router.get('/summary', async (req: Request, res: Response) => {
     });
     res.json(summary);
   } catch (err) {
-    console.error(err);
+    req.log.error({ err }, `sleep ${req.method} ${req.path} failed`);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
