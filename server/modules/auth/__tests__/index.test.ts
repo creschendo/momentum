@@ -88,7 +88,7 @@ describe('auth router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'Valid email is required' });
+    expect(res.body).toEqual({ error: 'email: Invalid email address' });
     expect(authService.createUser).not.toHaveBeenCalled();
   });
 

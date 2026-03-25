@@ -1,11 +1,23 @@
 import express, { Request, Response } from 'express';
+import { z } from 'zod';
 import service from './service.js';
+import { validate } from '../../lib/validate.js';
 
 const router = express.Router();
 
 function getUserId(req: Request): number {
   return (req as any).user.id;
 }
+
+const NoteBody = z.object({
+  title: z.string().trim().min(1, 'title is required'),
+  content: z.string().optional()
+});
+
+const NotePatchBody = z.object({
+  title: z.string().optional(),
+  content: z.string().optional()
+});
 
 /** GET /status — Health check. */
 router.get('/status', (_req: Request, res: Response) => {
@@ -25,12 +37,10 @@ router.get('/', async (req: Request, res: Response) => {
 
 /** POST / — Creates a new note. title is required. */
 router.post('/', async (req: Request, res: Response) => {
+  const body = validate(NoteBody, req.body, res);
+  if (!body) return;
   try {
-    const { title, content } = req.body || {};
-    if (!title || String(title).trim().length === 0) {
-      return res.status(400).json({ error: 'title is required' });
-    }
-    const created = await service.createNote({ userId: getUserId(req), title, content });
+    const created = await service.createNote({ userId: getUserId(req), ...body });
     res.status(201).json(created);
   } catch (err) {
     req.log.error({ err }, `notes ${req.method} ${req.path} failed`);
@@ -40,10 +50,10 @@ router.post('/', async (req: Request, res: Response) => {
 
 /** PATCH /:id — Partially updates a note. */
 router.patch('/:id', async (req: Request, res: Response) => {
+  const body = validate(NotePatchBody, req.body, res);
+  if (!body) return;
   try {
-    const { id } = req.params;
-    const { title, content } = req.body || {};
-    const updated = await service.updateNote({ userId: getUserId(req), id, patch: { title, content } });
+    const updated = await service.updateNote({ userId: getUserId(req), id: req.params.id, patch: body });
     if (!updated) return res.status(404).json({ error: 'not found' });
     res.json(updated);
   } catch (err) {
@@ -55,8 +65,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 /** DELETE /:id — Removes a note. Returns 204 on success. */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const ok = await service.removeNote({ userId: getUserId(req), id });
+    const ok = await service.removeNote({ userId: getUserId(req), id: req.params.id });
     if (!ok) return res.status(404).json({ error: 'not found' });
     res.status(204).end();
   } catch (err) {

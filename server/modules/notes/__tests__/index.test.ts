@@ -98,7 +98,7 @@ describe('notes router', () => {
       });
 
       expect(res.statusCode).toBe(400);
-      expect(res.body).toEqual({ error: 'title is required' });
+      expect(res.body).toEqual({ error: 'title: Invalid input: expected string, received undefined' });
       expect(service.createNote).not.toHaveBeenCalled();
     });
 

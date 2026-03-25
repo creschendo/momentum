@@ -86,7 +86,7 @@ describe('productivity router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'time must be HH:MM' });
+    expect(res.body).toEqual({ error: 'time: time must be HH:MM' });
     expect(service.createEvent).not.toHaveBeenCalled();
   });
 
@@ -125,6 +125,6 @@ describe('productivity router scaffolding', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'title is required' });
+    expect(res.body).toEqual({ error: 'title: title is required' });
   });
 });
