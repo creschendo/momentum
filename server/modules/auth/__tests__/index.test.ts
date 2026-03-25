@@ -12,7 +12,9 @@ vi.mock('../service.js', () => ({
   createSession: vi.fn(),
   getSessionCookieOptions: vi.fn(() => ({ httpOnly: true, sameSite: 'lax', path: '/', maxAge: 123 })),
   getUserFromSessionToken: vi.fn(),
-  revokeSessionByToken: vi.fn()
+  revokeSessionByToken: vi.fn(),
+  createPasswordResetToken: vi.fn(),
+  consumePasswordResetToken: vi.fn()
 }));
 
 import router from '../index.js';
@@ -129,5 +131,73 @@ describe('auth router scaffolding', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ user: { id: 3, email: 'user@example.com', displayName: '' } });
+  });
+
+  it('returns 200 for forgot-password regardless of whether email exists', async () => {
+    vi.mocked(authService.createPasswordResetToken).mockResolvedValueOnce(null);
+
+    const handler = getRouteHandler(router, 'post', '/forgot-password');
+    const res = await runRoute(handler, { body: { email: 'unknown@example.com' } });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it('logs reset token when email is found for forgot-password', async () => {
+    vi.mocked(authService.createPasswordResetToken).mockResolvedValueOnce({ token: 'abc123', userId: 7 });
+
+    const handler = getRouteHandler(router, 'post', '/forgot-password');
+    const res = await runRoute(handler, { body: { email: 'user@example.com' } });
+
+    expect(authService.createPasswordResetToken).toHaveBeenCalledWith('user@example.com');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it('returns 400 for invalid forgot-password email', async () => {
+    const handler = getRouteHandler(router, 'post', '/forgot-password');
+    const res = await runRoute(handler, { body: { email: 'not-an-email' } });
+
+    expect(res.statusCode).toBe(400);
+    expect(authService.createPasswordResetToken).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 on successful reset-password', async () => {
+    vi.mocked(authService.consumePasswordResetToken).mockResolvedValueOnce(undefined);
+
+    const handler = getRouteHandler(router, 'post', '/reset-password');
+    const res = await runRoute(handler, { body: { token: 'abc123', newPassword: 'newpassword1' } });
+
+    expect(authService.consumePasswordResetToken).toHaveBeenCalledWith('abc123', 'newpassword1');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
+  it('returns 400 for invalid or expired reset token', async () => {
+    vi.mocked(authService.consumePasswordResetToken).mockRejectedValueOnce(new Error('Invalid or expired reset token'));
+
+    const handler = getRouteHandler(router, 'post', '/reset-password');
+    const res = await runRoute(handler, { body: { token: 'bad-token', newPassword: 'newpassword1' } });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid or expired reset token' });
+  });
+
+  it('returns 400 when reset token already used', async () => {
+    vi.mocked(authService.consumePasswordResetToken).mockRejectedValueOnce(new Error('Reset token has already been used'));
+
+    const handler = getRouteHandler(router, 'post', '/reset-password');
+    const res = await runRoute(handler, { body: { token: 'used-token', newPassword: 'newpassword1' } });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'Reset token has already been used' });
+  });
+
+  it('returns 400 for reset-password with short new password', async () => {
+    const handler = getRouteHandler(router, 'post', '/reset-password');
+    const res = await runRoute(handler, { body: { token: 'abc123', newPassword: 'short' } });
+
+    expect(res.statusCode).toBe(400);
+    expect(authService.consumePasswordResetToken).not.toHaveBeenCalled();
   });
 });

@@ -275,3 +275,60 @@ export async function revokeSessionById(userId: number, sessionId: number): Prom
   );
   return (result.rowCount ?? 0) > 0;
 }
+
+// ── Password reset ─────────────────────────────────────────────────────────────
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+/** Generates a password reset token for the given email. Deletes any existing
+ *  unused tokens for the user first (one active token at a time). Returns the
+ *  plaintext token and userId, or null if the email is not registered. The
+ *  caller is responsible for delivering the token to the user (e.g. via email). */
+export async function createPasswordResetToken(email: string): Promise<{ token: string; userId: number } | null> {
+  const normalizedEmail = normalizeEmail(email);
+  const result = await pool.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+  const user = result.rows[0];
+  if (!user) return null;
+
+  // Invalidate any existing unused tokens for this user
+  await pool.query(
+    'DELETE FROM password_reset_tokens WHERE user_id = $1 AND used_at IS NULL',
+    [user.id]
+  );
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+
+  await pool.query(
+    'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    [user.id, tokenHash, expiresAt]
+  );
+
+  return { token, userId: user.id };
+}
+
+/** Validates a plaintext reset token and updates the user's password. Marks
+ *  the token as used so it cannot be replayed. Returns true on success.
+ *  Throws with a user-visible message if the token is invalid, expired, or
+ *  already used. */
+export async function consumePasswordResetToken(token: string, newPassword: string): Promise<void> {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  const result = await pool.query(
+    `SELECT id, user_id, expires_at, used_at
+     FROM password_reset_tokens
+     WHERE token_hash = $1`,
+    [tokenHash]
+  );
+
+  const row = result.rows[0];
+  if (!row) throw new Error('Invalid or expired reset token');
+  if (row.used_at) throw new Error('Reset token has already been used');
+  if (new Date(row.expires_at) < new Date()) throw new Error('Invalid or expired reset token');
+
+  const newHash = await bcrypt.hash(String(newPassword), PASSWORD_ROUNDS);
+
+  await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, row.user_id]);
+  await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [row.id]);
+}

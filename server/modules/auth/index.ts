@@ -14,7 +14,9 @@ import {
   updateUserPassword,
   deleteUserAccount,
   listUserSessions,
-  revokeSessionById
+  revokeSessionById,
+  createPasswordResetToken,
+  consumePasswordResetToken
 } from './service.js';
 import { requireAuth } from './middleware.js';
 import { validate } from '../../lib/validate.js';
@@ -202,6 +204,54 @@ router.delete('/account', requireAuth, async (req: Request, res: Response) => {
     const msg = err instanceof Error ? err.message : '';
     if (msg === 'Invalid password') return res.status(401).json({ error: msg });
     return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// ── Password reset ─────────────────────────────────────────────────────────────
+
+const ForgotPasswordBody = z.object({
+  email: z.string().email()
+});
+
+const ResetPasswordBody = z.object({
+  token: z.string().min(1, 'Token is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters')
+});
+
+/** POST /forgot-password — Generates a password reset token for the given email.
+ *  Always returns 200 regardless of whether the email exists (prevents enumeration).
+ *  The reset token is logged — wire this to an email service to deliver it to users. */
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  const body = validate(ForgotPasswordBody, req.body, res);
+  if (!body) return;
+  try {
+    const result = await createPasswordResetToken(body.email);
+    if (result) {
+      const resetUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}/reset-password?token=${result.token}`;
+      req.log.info({ userId: result.userId, resetUrl }, 'Password reset token generated');
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, 'forgot-password failed');
+    return res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+/** POST /reset-password — Consumes a reset token and sets a new password.
+ *  The token is single-use and expires after 1 hour. */
+router.post('/reset-password', async (req: Request, res: Response) => {
+  const body = validate(ResetPasswordBody, req.body, res);
+  if (!body) return;
+  try {
+    await consumePasswordResetToken(body.token, body.newPassword);
+    return res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'Invalid or expired reset token' || msg === 'Reset token has already been used') {
+      return res.status(400).json({ error: msg });
+    }
+    req.log.error({ err }, 'reset-password failed');
+    return res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
