@@ -36,10 +36,12 @@ async function createEvent({ userId, title, dateKey, time, description }: { user
   return result.rows[0];
 }
 
-/** Returns all calendar events for the user ordered by date/time ascending.
+/** Returns calendar events for the user ordered by date/time ascending.
  *  When both startDate and endDate are provided, only events within that
- *  inclusive date range are returned. */
-async function listEvents({ userId, startDate, endDate }: { userId: number; startDate?: string; endDate?: string } = { userId: 0 }) {
+ *  inclusive date range are returned. limit is clamped to [1, 500], default 200. */
+async function listEvents({ userId, startDate, endDate, limit = 200 }: { userId: number; startDate?: string; endDate?: string; limit?: number } = { userId: 0 }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Number(limit))) : 200;
+
   if (startDate && endDate) {
     const result = await pool.query(
       `SELECT id, title, description, event_date::text as "dateKey",
@@ -47,8 +49,9 @@ async function listEvents({ userId, startDate, endDate }: { userId: number; star
               created_at as "createdAt", updated_at as "updatedAt"
        FROM events
        WHERE user_id = $1 AND event_date >= $2 AND event_date <= $3
-       ORDER BY event_date ASC, event_time ASC, created_at ASC`,
-      [userId, startDate, endDate]
+       ORDER BY event_date ASC, event_time ASC, created_at ASC
+       LIMIT $4`,
+      [userId, startDate, endDate, safeLimit]
     );
     return result.rows;
   }
@@ -59,8 +62,9 @@ async function listEvents({ userId, startDate, endDate }: { userId: number; star
             created_at as "createdAt", updated_at as "updatedAt"
      FROM events
      WHERE user_id = $1
-     ORDER BY event_date ASC, event_time ASC, created_at ASC`,
-    [userId]
+     ORDER BY event_date ASC, event_time ASC, created_at ASC
+     LIMIT $2`,
+    [userId, safeLimit]
   );
   return result.rows;
 }
@@ -123,12 +127,13 @@ async function createTask({ userId, title, notes }: { userId: number; title: str
   return result.rows[0];
 }
 
-/** Returns all tasks for the user ordered newest-first, including title,
- *  notes, and completion status. */
-async function listTasks({ userId }: { userId: number }) {
+/** Returns tasks for the user ordered newest-first, including title,
+ *  notes, and completion status. limit is clamped to [1, 500], default 100. */
+async function listTasks({ userId, limit = 100 }: { userId: number; limit?: number }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Number(limit))) : 100;
   const result = await pool.query(
-    'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 ORDER BY created_at DESC',
-    [userId]
+    'SELECT id, title, notes, done, created_at as "createdAt", updated_at as "updatedAt" FROM tasks WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
+    [userId, safeLimit]
   );
   return result.rows;
 }

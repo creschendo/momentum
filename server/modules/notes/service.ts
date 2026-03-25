@@ -18,12 +18,13 @@ async function createNote({ userId, title, content }: { userId: number; title: s
   return result.rows[0];
 }
 
-/** Returns all notes for the user ordered newest-first. */
-async function listNotes({ userId }: { userId: number }) {
+/** Returns notes for the user ordered newest-first. limit is clamped to [1, 500], default 100. */
+async function listNotes({ userId, limit = 100 }: { userId: number; limit?: number }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Number(limit))) : 100;
   const result = await pool.query(
     `SELECT id, title, content, created_at as "createdAt", updated_at as "updatedAt"
-     FROM notes WHERE user_id = $1 ORDER BY created_at DESC`,
-    [userId]
+     FROM notes WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [userId, safeLimit]
   );
   return result.rows;
 }

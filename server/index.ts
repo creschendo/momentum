@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import compression from 'compression';
 import pinoHttp from 'pino-http';
 import logger from './logger.js';
 import authRouter from './modules/auth/index.js';
@@ -84,6 +85,7 @@ app.use('/api/notes', apiLimiter as unknown as express.RequestHandler, requireAu
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
+  app.use(compression() as unknown as express.RequestHandler);
   app.use(express.static(clientDist));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));

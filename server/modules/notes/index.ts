@@ -24,10 +24,11 @@ router.get('/status', (_req: Request, res: Response) => {
   res.json({ module: 'notes', status: 'ok', info: 'Notes module ready' });
 });
 
-/** GET / — Returns all notes for the user ordered newest-first. */
+/** GET / — Returns notes for the user ordered newest-first. Accepts ?limit (default 100, max 500). */
 router.get('/', async (req: Request, res: Response) => {
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   try {
-    const list = await service.listNotes({ userId: getUserId(req) });
+    const list = await service.listNotes({ userId: getUserId(req), limit });
     res.json(list);
   } catch (err) {
     req.log.error({ err }, `notes ${req.method} ${req.path} failed`);
