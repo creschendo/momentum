@@ -8,13 +8,14 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm --prefix client run build",
     "start": "tsx server/index.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck:client": "npm --prefix client run typecheck",
     "typecheck:server": "npm --prefix server run typecheck",
     "typecheck": "npm run typecheck:client && npm run typecheck:server",
-    "db:init": "npm --prefix server run db:init",
+    "db:migrate": "npm --prefix server run db:migrate",
     "seed:user": "npm --prefix server run seed:user",
     "auth:setup": "npm --prefix server run auth:setup"
   },

@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import logger from './logger.js';
 
 const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
@@ -9,7 +10,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+  logger.error({ err }, 'Unexpected error on idle DB client');
 });
 
 export default pool;

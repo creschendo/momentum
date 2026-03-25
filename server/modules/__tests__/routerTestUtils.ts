@@ -76,11 +76,20 @@ export function createMockRes() {
   };
 }
 
+const mockLog = {
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  fatal: () => {},
+};
+
 /** Executes a route handler with a mock response and the provided mock
  *  request, then returns the populated mock response for assertion.
  *  Simplifies testing individual route handlers without spinning up a server. */
 export async function runRoute(handler: (req: unknown, res: unknown) => unknown, req: Record<string, unknown> = {}) {
   const response = createMockRes();
-  await handler(req, response);
+  await handler({ log: mockLog, ...req }, response);
   return response;
 }
