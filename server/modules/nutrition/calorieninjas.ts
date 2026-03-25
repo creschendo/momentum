@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { NutritionSearchResult, NaturalLanguageResult, TdeeRequest, TdeeResult } from '../../types.js';
+import logger from '../../logger.js';
 
 interface CalorieNinjaItem {
   name?: string;
@@ -23,6 +24,31 @@ interface CalorieNinjaResponse {
 
 const API_KEY = process.env.CALORIENINJAS_API_KEY;
 const BASE = 'https://api.calorieninjas.com/v1';
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 300;
+
+/** Retries an async function up to MAX_RETRIES times with exponential backoff.
+ *  Non-retryable: 4xx responses other than 429 (rate limit). */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (axios.isAxiosError(err) && err.response) {
+        const { status } = err.response;
+        if (status >= 400 && status < 500 && status !== 429) throw err;
+      }
+      if (attempt < MAX_RETRIES - 1) {
+        const delay = BASE_DELAY_MS * 2 ** attempt;
+        logger.warn({ attempt, delay }, 'CalorieNinjas request failed, retrying');
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
 
 /** Throws an error if the CALORIENINJAS_API_KEY environment variable is not
  *  set. Call this at the start of any function that makes an API request. */
@@ -38,12 +64,10 @@ function ensureKeys(): void {
 async function searchInstant(query: string): Promise<NutritionSearchResult> {
   ensureKeys();
   const url = `${BASE}/nutrition`;
-  const res = await axios.get(url, {
+  const res = await withRetry(() => axios.get(url, {
     params: { query },
-    headers: {
-      'X-Api-Key': API_KEY
-    }
-  });
+    headers: { 'X-Api-Key': API_KEY }
+  }));
 
   // Transform CalorieNinjas response to match expected format
   // CalorieNinjas returns: items[] with name, calories, protein_g, carbohydrates_total_g, fat_total_g, serving_size_g

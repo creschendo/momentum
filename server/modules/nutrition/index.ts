@@ -166,7 +166,8 @@ router.delete('/weight/:id', async (req: Request, res: Response) => {
   }
 });
 
-/** GET /search — Searches the CalorieNinjas API for nutrition data. */
+/** GET /search — Searches the CalorieNinjas API for nutrition data.
+ *  Returns an empty result set if the upstream API is unavailable after retries. */
 router.get('/search', async (req: Request, res: Response) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ error: 'query required' });
@@ -174,8 +175,8 @@ router.get('/search', async (req: Request, res: Response) => {
     const results = await calorieninjas.searchInstant(String(q));
     res.json(results);
   } catch (err) {
-    req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
-    res.status(500).json({ error: 'Internal server error' });
+    req.log.warn({ err }, 'CalorieNinjas search unavailable after retries, returning empty fallback');
+    res.json({ common: [], degraded: true });
   }
 });
 
