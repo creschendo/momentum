@@ -44,11 +44,12 @@ router.get('/status', (req: Request, res: Response) => {
   res.json({ module: 'productivity', status: 'ok', info: 'Productivity module ready' });
 });
 
-/** GET /events — Returns calendar events for the user ordered by date and time. */
+/** GET /events — Returns calendar events for the user ordered by date and time. Accepts ?limit (default 200, max 500). */
 router.get('/events', async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
-    const list = await service.listEvents({ userId: getUserId(req), startDate: startDate as string | undefined, endDate: endDate as string | undefined });
+    const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 200));
+    const list = await service.listEvents({ userId: getUserId(req), startDate: startDate as string | undefined, endDate: endDate as string | undefined, limit });
     res.json(list);
   } catch (err) {
     req.log.error({ err }, `productivity ${req.method} ${req.path} failed`);
@@ -95,10 +96,11 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
   }
 });
 
-/** GET /tasks — Returns all tasks for the user ordered newest-first. */
+/** GET /tasks — Returns tasks for the user ordered newest-first. Accepts ?limit (default 100, max 500). */
 router.get('/tasks', async (req: Request, res: Response) => {
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   try {
-    const list = await service.listTasks({ userId: getUserId(req) });
+    const list = await service.listTasks({ userId: getUserId(req), limit });
     res.json(list);
   } catch (err) {
     req.log.error({ err }, `productivity ${req.method} ${req.path} failed`);

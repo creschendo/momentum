@@ -81,11 +81,12 @@ router.post('/water', async (req: Request, res: Response) => {
   }
 });
 
-/** GET /water/entries — Returns all water intake entries for the user. */
+/** GET /water/entries — Returns water intake entries for the user. Accepts ?limit (default 100, max 500). */
 router.get('/water/entries', async (req: Request, res: Response) => {
   const { since } = req.query;
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   try {
-    const list = await service.listEntries({ userId: getUserId(req), since: since as string | undefined });
+    const list = await service.listEntries({ userId: getUserId(req), since: since as string | undefined, limit });
     res.json(list);
   } catch (err) {
     req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
@@ -191,11 +192,12 @@ router.post('/foods', async (req: Request, res: Response) => {
   }
 });
 
-/** GET /foods — Returns all food entries for the user. */
+/** GET /foods — Returns food entries for the user. Accepts ?limit (default 100, max 500). */
 router.get('/foods', async (req: Request, res: Response) => {
   const { since } = req.query;
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   try {
-    const entries = await service.getFoodEntries({ userId: getUserId(req), since: since as string | undefined });
+    const entries = await service.getFoodEntries({ userId: getUserId(req), since: since as string | undefined, limit });
     res.json(entries);
   } catch (err) {
     req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);
@@ -239,11 +241,12 @@ router.post('/meals', async (req: Request, res: Response) => {
   }
 });
 
-/** GET /meals — Returns all meals for the user with their food items. */
+/** GET /meals — Returns meals for the user with their food items. Accepts ?limit (default 50, max 200). */
 router.get('/meals', async (req: Request, res: Response) => {
   const { since } = req.query;
+  const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 50));
   try {
-    const meals = await service.getMeals({ userId: getUserId(req), since: since as string | undefined });
+    const meals = await service.getMeals({ userId: getUserId(req), since: since as string | undefined, limit });
     res.json(meals);
   } catch (err) {
     req.log.error({ err }, `nutrition ${req.method} ${req.path} failed`);

@@ -19,18 +19,21 @@ async function addWaterEntry({ userId, volumeMl, timestamp }: { userId: number; 
   return result.rows[0];
 }
 
-/** Returns all water intake entries for the user ordered newest-first.
- *  Optionally filters to entries at or after the given ISO `since` datetime. */
-async function listEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
+/** Returns water intake entries for the user ordered newest-first.
+ *  Optionally filters to entries at or after the given ISO `since` datetime.
+ *  limit is clamped to [1, 500], default 100. */
+async function listEntries({ userId, since, limit = 100 }: { userId: number; since?: string; limit?: number } = { userId: 0 }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Number(limit))) : 100;
   let query = 'SELECT id, volume_ml as "volumeMl", timestamp FROM water_entries WHERE user_id = $1';
-  const values: (number | Date)[] = [userId];
+  const values: (number | Date | number)[] = [userId];
 
   if (since) {
     query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
 
-  query += ' ORDER BY timestamp DESC';
+  query += ` ORDER BY timestamp DESC LIMIT $${values.length + 1}`;
+  values.push(safeLimit);
   const result = await pool.query(query, values);
   return result.rows;
 }
@@ -178,7 +181,8 @@ async function addMeal({ userId, name, foods, timestamp }: { userId: number; nam
 /** Fetches all meals for the user with their associated food items via a
  *  LEFT JOIN and json_agg aggregation. Results are newest-first. Accepts an
  *  optional `since` ISO timestamp to filter by meal timestamp. */
-async function getMeals({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
+async function getMeals({ userId, since, limit = 50 }: { userId: number; since?: string; limit?: number } = { userId: 0 }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(200, Number(limit))) : 50;
   let query = `
     SELECT m.id, m.name, m.timestamp,
            json_agg(json_build_object('foodName', mf.food_name, 'calories', mf.calories, 'protein', mf.protein, 'carbs', mf.carbs, 'fat', mf.fat))
@@ -187,14 +191,15 @@ async function getMeals({ userId, since }: { userId: number; since?: string } = 
     LEFT JOIN meal_foods mf ON m.id = mf.meal_id
     WHERE m.user_id = $1
   `;
-  const values: (number | Date)[] = [userId];
+  const values: (number | Date | number)[] = [userId];
 
   if (since) {
     query += ' AND m.timestamp >= $2';
     values.push(new Date(since));
   }
 
-  query += ' GROUP BY m.id, m.name, m.timestamp ORDER BY m.timestamp DESC';
+  query += ` GROUP BY m.id, m.name, m.timestamp ORDER BY m.timestamp DESC LIMIT $${values.length + 1}`;
+  values.push(safeLimit);
 
   const result = await pool.query(query, values);
   return result.rows.map(row => ({
@@ -268,18 +273,21 @@ async function addFoodEntry({ userId, foodName, calories, protein, carbs, fat, t
   return result.rows[0];
 }
 
-/** Returns all standalone food entries for the user ordered newest-first.
- *  Optionally filters to entries at or after the given ISO `since` datetime. */
-async function getFoodEntries({ userId, since }: { userId: number; since?: string } = { userId: 0 }) {
+/** Returns standalone food entries for the user ordered newest-first.
+ *  Optionally filters to entries at or after the given ISO `since` datetime.
+ *  limit is clamped to [1, 500], default 100. */
+async function getFoodEntries({ userId, since, limit = 100 }: { userId: number; since?: string; limit?: number } = { userId: 0 }) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Number(limit))) : 100;
   let query = 'SELECT id, food_name as "foodName", calories, protein, carbs, fat, timestamp FROM food_entries WHERE user_id = $1';
-  const values: (number | Date)[] = [userId];
+  const values: (number | Date | number)[] = [userId];
 
   if (since) {
     query += ' AND timestamp >= $2';
     values.push(new Date(since));
   }
 
-  query += ' ORDER BY timestamp DESC';
+  query += ` ORDER BY timestamp DESC LIMIT $${values.length + 1}`;
+  values.push(safeLimit);
   const result = await pool.query(query, values);
   return result.rows;
 }

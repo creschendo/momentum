@@ -60,7 +60,7 @@ describe('notes router', () => {
       const handler = getRouteHandler(router, 'get', '/');
       const res = await runRoute(handler, { user: { id: 1 } });
 
-      expect(service.listNotes).toHaveBeenCalledWith({ userId: 1 });
+      expect(service.listNotes).toHaveBeenCalledWith({ userId: 1, limit: 100 });
       expect(res.statusCode).toBe(200);
       expect(res.body).toEqual(notes);
     });

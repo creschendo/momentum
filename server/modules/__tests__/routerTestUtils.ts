@@ -90,6 +90,6 @@ const mockLog = {
  *  Simplifies testing individual route handlers without spinning up a server. */
 export async function runRoute(handler: (req: unknown, res: unknown) => unknown, req: Record<string, unknown> = {}) {
   const response = createMockRes();
-  await handler({ log: mockLog, ...req }, response);
+  await handler({ log: mockLog, query: {}, ...req }, response);
   return response;
 }
