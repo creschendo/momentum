@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 // Hook: fetches /api/<moduleKey>/status and returns a status object
 // Returned shape: { loading: boolean, ok?: boolean, data?: any, error?: string }
-export default function useModuleStatus(moduleKey) {
-  const [status, setStatus] = useState({ loading: true });
+export default function useModuleStatus(moduleKey: string) {
+  const [status, setStatus] = useState<{ loading: boolean; ok?: boolean; data?: unknown; error?: string }>({ loading: true });
 
   useEffect(() => {
     let mounted = true;
