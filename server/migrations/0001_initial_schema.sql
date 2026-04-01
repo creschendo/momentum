@@ -114,6 +114,10 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_created_at ON tasks(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(event_date, event_time);
 CREATE INDEX IF NOT EXISTS idx_events_user_date_time ON events(user_id, event_date, event_time);
+CREATE INDEX IF NOT EXISTS idx_meal_foods_meal_id ON meal_foods(meal_id);
+CREATE INDEX IF NOT EXISTS idx_lifts_day_id ON lifts(day_id);
+CREATE INDEX IF NOT EXISTS idx_cardio_day_id ON cardio(day_id);
+CREATE INDEX IF NOT EXISTS idx_split_days_split_id ON split_days(split_id);
 
 -- Accounts and sessions
 CREATE TABLE IF NOT EXISTS users (
