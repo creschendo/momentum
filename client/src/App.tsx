@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './index.css';
 
 import AuthScreen from './components/AuthScreen';
 import WelcomeScreen from './components/WelcomeScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
 import DashboardSummary from './components/DashboardSummary';
 import DashboardHeader from './components/DashboardHeader';
 import DashboardGrid from './components/DashboardGrid';
@@ -40,6 +41,7 @@ function AppContent() {
   }, [user]);
   const handleSettings = () => navigate('/profile');
   const navigate = useNavigate();
+  const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
 
   const { formattedDateTime } = useClock();
@@ -81,6 +83,10 @@ function AppContent() {
         Loading session...
       </div>
     );
+  }
+
+  if (location.pathname === '/reset-password') {
+    return <ResetPasswordScreen />;
   }
 
   if (!user) {
