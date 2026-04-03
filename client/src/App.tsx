@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import './index.css';
 
 import AuthScreen from './components/AuthScreen';
+import WelcomeScreen from './components/WelcomeScreen';
 import DashboardSummary from './components/DashboardSummary';
 import DashboardHeader from './components/DashboardHeader';
 import DashboardGrid from './components/DashboardGrid';
@@ -28,6 +29,15 @@ import useLayout from './hooks/useLayout';
 function AppContent() {
   const { theme, currentTheme, isDark } = useTheme();
   const { user, loading, logout } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(() =>
+    localStorage.getItem('momentum-onboarding-pending') === 'true'
+  );
+
+  useEffect(() => {
+    if (user && localStorage.getItem('momentum-onboarding-pending') === 'true') {
+      setShowOnboarding(true);
+    }
+  }, [user]);
   const handleSettings = () => navigate('/profile');
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
@@ -75,6 +85,10 @@ function AppContent() {
 
   if (!user) {
     return <AuthScreen />;
+  }
+
+  if (showOnboarding) {
+    return <WelcomeScreen onComplete={() => setShowOnboarding(false)} />;
   }
 
   const moduleRouteContent = (moduleKey) => (

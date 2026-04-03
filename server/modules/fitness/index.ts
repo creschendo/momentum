@@ -14,7 +14,7 @@ function getUserId(req: Request): number {
 const SplitBody = z.object({
   name: z.string().optional(),
   title: z.string().optional(),
-  days: z.number().int().positive()
+  days: z.number().int().min(0)
 }).refine(b => b.name || b.title, { message: 'Name is required' });
 
 const SplitUpdateBody = z.object({

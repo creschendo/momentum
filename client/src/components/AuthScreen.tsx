@@ -22,11 +22,13 @@ export default function AuthScreen() {
 
     try {
       if (isRegister) {
+        localStorage.setItem('momentum-onboarding-pending', 'true');
         await register(email, password, displayName);
       } else {
         await login(email, password);
       }
     } catch (err) {
+      localStorage.removeItem('momentum-onboarding-pending');
       setError(err?.message || 'Authentication failed');
     } finally {
       setSubmitting(false);
