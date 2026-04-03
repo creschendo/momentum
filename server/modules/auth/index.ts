@@ -20,6 +20,7 @@ import {
 } from './service.js';
 import { requireAuth } from './middleware.js';
 import { validate } from '../../lib/validate.js';
+import { sendPasswordResetEmail } from '../../lib/email.js';
 
 const router = express.Router();
 
@@ -228,7 +229,12 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     const result = await createPasswordResetToken(body.email);
     if (result) {
       const resetUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}/reset-password?token=${result.token}`;
-      req.log.info({ userId: result.userId, resetUrl }, 'Password reset token generated');
+      req.log.info({ userId: result.userId }, 'Password reset token generated');
+      try {
+        await sendPasswordResetEmail(body.email, resetUrl);
+      } catch (emailErr) {
+        req.log.error({ err: emailErr, resetUrl }, 'Failed to send reset email — token still valid, URL logged');
+      }
     }
     return res.json({ ok: true });
   } catch (err) {
