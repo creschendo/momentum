@@ -1,16 +1,17 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM = process.env.EMAIL_FROM || 'Momentum <onboarding@resend.dev>';
 
 /** Sends a password reset email with a tokenised link.
  *  No-ops (with a warning) if RESEND_API_KEY is not configured. */
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
-  if (!process.env.RESEND_API_KEY) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
     console.warn('[email] RESEND_API_KEY not set — skipping email send. Reset URL:', resetUrl);
     return;
   }
+
+  const resend = new Resend(apiKey);
 
   await resend.emails.send({
     from: FROM,
